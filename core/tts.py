@@ -20,35 +20,37 @@ class TTSModule:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._semaphore = asyncio.Semaphore(3)
 
-    def generate(self, text: str, output_path: str) -> str:
-        cached = self._check_cache(text)
+    def generate(self, text: str, output_path: str, voice: Optional[str] = None) -> str:
+        effective_voice = voice or self.voice
+        _log.debug("generate voice=%s effective=%s text=%s", voice, effective_voice, text[:20])
+        cached = self._check_cache(text, effective_voice)
         if cached:
             import shutil
             shutil.copy2(cached, output_path)
             return output_path
 
         if self.engine == "edge-tts":
-            result = self._edge_tts(text, output_path)
+            result = self._edge_tts(text, output_path, effective_voice)
         else:
             result = self._fallback_tts(text, output_path)
 
         if result:
-            self._save_cache(text, result)
+            self._save_cache(text, result, effective_voice)
         return result
 
-    def generate_batch(self, segments: list[tuple[int, str]], output_dir: str) -> list[str]:
+    def generate_batch(self, segments: list[tuple[int, str]], output_dir: str, voice: Optional[str] = None) -> list[str]:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         results: list[str] = []
 
         for seg_id, text in segments:
             out_path = str(output_dir / f"voice_{seg_id:04d}.wav")
-            result = self.generate(text, out_path)
+            result = self.generate(text, out_path, voice=voice)
             results.append(result)
 
         return results
 
-    def generate_batch_async(self, segments: list[tuple[int, str]], output_dir: str) -> list[str]:
+    def generate_batch_async(self, segments: list[tuple[int, str]], output_dir: str, voice: Optional[str] = None) -> list[str]:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -56,7 +58,7 @@ class TTSModule:
             tasks = []
             for seg_id, text in segments:
                 out_path = str(output_dir / f"voice_{seg_id:04d}.wav")
-                tasks.append(self._async_generate(text, out_path))
+                tasks.append(self._async_generate(text, out_path, voice=voice))
             return await asyncio.gather(*tasks)
 
         try:
@@ -66,14 +68,14 @@ class TTSModule:
             results = []
             for seg_id, text in segments:
                 out_path = str(output_dir / f"voice_{seg_id:04d}.wav")
-                results.append(self.generate(text, out_path))
+                results.append(self.generate(text, out_path, voice=voice))
             return results
 
-    def _edge_tts(self, text: str, output_path: str) -> str:
+    def _edge_tts(self, text: str, output_path: str, voice: Optional[str] = None) -> str:
         async def _do():
             import edge_tts
             rate = f"{int((self.speed - 1) * 50):+d}%"
-            communicate = edge_tts.Communicate(text, self.voice, rate=rate)
+            communicate = edge_tts.Communicate(text, voice or self.voice, rate=rate)
             await communicate.save(output_path)
             return output_path
 
@@ -112,8 +114,9 @@ class TTSModule:
             pass
         return output_path if os.path.exists(output_path) else ""
 
-    async def _async_generate(self, text: str, output_path: str) -> Optional[str]:
-        cached = self._check_cache(text)
+    async def _async_generate(self, text: str, output_path: str, voice: Optional[str] = None) -> Optional[str]:
+        effective_voice = voice or self.voice
+        cached = self._check_cache(text, effective_voice)
         if cached:
             import shutil
             shutil.copy2(cached, output_path)
@@ -123,15 +126,15 @@ class TTSModule:
             try:
                 import edge_tts
                 rate = f"{int((self.speed - 1) * 50):+d}%"
-                communicate = edge_tts.Communicate(text, self.voice, rate=rate)
+                communicate = edge_tts.Communicate(text, effective_voice, rate=rate)
                 await communicate.save(output_path)
-                self._save_cache(text, output_path)
+                self._save_cache(text, output_path, effective_voice)
                 return output_path
             except Exception:
                 return self._fallback_tts(text, output_path)
 
-    def _check_cache(self, text: str) -> Optional[str]:
-        key = hashlib.md5(text.encode()).hexdigest()
+    def _check_cache(self, text: str, voice: Optional[str] = None) -> Optional[str]:
+        key = self._cache_key(text, voice)
         cached_file = self.cache_dir / f"{key}.wav"
         if not cached_file.exists():
             return None
@@ -141,16 +144,21 @@ class TTSModule:
             return None
         return str(cached_file)
 
-    def _save_cache(self, text: str, output_path: str):
+    def _save_cache(self, text: str, output_path: str, voice: Optional[str] = None):
         if not os.path.exists(output_path):
             return
         if self._is_silent(output_path):
             return
-        key = hashlib.md5(text.encode()).hexdigest()
+        key = self._cache_key(text, voice)
         cached_file = self.cache_dir / f"{key}.wav"
         if not cached_file.exists():
             import shutil
             shutil.copy2(output_path, cached_file)
+
+    @staticmethod
+    def _cache_key(text: str, voice: Optional[str] = None) -> str:
+        raw = f"{voice or ''}:{text}"
+        return hashlib.md5(raw.encode()).hexdigest()
 
     @staticmethod
     def _is_silent(path: str) -> bool:

@@ -2,7 +2,7 @@
   "title": "商业趋势分析",
   "duration": 15,
   "style": "commerce",
-  "voice": "female_01",
+  "voice": "zh-CN-XiaoyiNeural",
   "bgm": "bgm_commerce.mp3",
   "segments": [
     {

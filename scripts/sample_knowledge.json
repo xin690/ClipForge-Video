@@ -2,7 +2,7 @@
   "title": "减脂知识科普",
   "duration": 21,
   "style": "knowledge",
-  "voice": "female_01",
+  "voice": "zh-CN-YunxiNeural",
   "bgm": "bgm_knowledge.mp3",
   "segments": [
     {

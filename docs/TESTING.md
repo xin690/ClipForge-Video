@@ -1,6 +1,6 @@
 # ClipForge 测试文档
 
-> v0.2.0 | pytest 9.0.3 | 119 个测试用例 | 11 个测试文件
+> v0.2.0 | pytest 9.0.3 | 153 个测试用例 | 16 个测试文件
 
 ---
 
@@ -33,12 +33,12 @@
 ### 1.2 当前状态
 
 | 指标 | 数值 |
-|---|---|
-| 测试文件 | 11 个 pytest + 4 个辅助脚本 |
-| 测试用例 | 119 个（pytest）+ ~36 个（独立脚本） |
-| 通过率 | 100%（119/119） |
-| 运行时间 | ~0.6s（纯单元测试） |
-| 覆盖模块 | models, database, matcher, rules, timeline, tts, subtitle, ffmpeg, renderer, pipeline, integration |
+|---|---|---|
+| 测试文件 | 13 个 pytest + 6 个辅助脚本 |
+| 测试用例 | 153 个（pytest） |
+| 通过率 | 100%（153/153） |
+| 运行时间 | ~0.5s（纯单元测试） / ~16s（含 FFmpeg 检测） |
+| 覆盖模块 | models, database, matcher, rules, timeline, tts, subtitle, ffmpeg, renderer, pipeline, ai_planner, downloader, integration |
 
 ### 1.3 分层结构
 
@@ -56,6 +56,8 @@ tests/
 ├── test_renderer.py              # 渲染器（9 个）
 ├── test_pipeline.py              # 管线编排（8 个）
 ├── test_integration.py           # 跨模块集成流程（3 个）
+├── test_ai_planner.py            # AI 规划模块（15 个）
+├── test_downloader.py            # 素材下载模块（19 个）
 ├── run_all_tests.py              # 独立快速测试（无 pytest 依赖）
 ├── _run_integration_test.py      # 手动集成测试
 ├── generate_test_assets.py       # FFmpeg 测试素材生成
@@ -151,7 +153,7 @@ RUN_TESTS.bat
 
 ```
 1 - Quick test (~36 checks, no FFmpeg needed)
-2 - Full test (119 pytest tests)
+2 - Full test (153 pytest tests)
 3 - Generate test assets (requires FFmpeg)
 4 - Input/output module check
 ```
@@ -472,7 +474,8 @@ class StubDB:
 | pipeline | `core/pipeline.py` | ✅ 完全覆盖 | `test_pipeline.py` |
 | scanner | `core/scanner.py` | ⚠️ 部分覆盖 | `test_integration.py` |
 | config | `core/config.py` | ⚠️ 部分覆盖 | `run_all_tests.py` |
-| ai_planner | `core/ai_planner.py` | ❌ 未覆盖 | — |
+| ai_planner | `core/ai_planner.py` | ✅ 已覆盖（15 个测试） | `test_ai_planner.py` |
+| downloader | `core/downloader.py` | ✅ 已覆盖（19 个测试） | `test_downloader.py` |
 
 ### 6.2 覆盖缺口
 
@@ -482,7 +485,6 @@ class StubDB:
 |---|---|---|
 | `core/scanner.py` | 文件系统操作依赖实际素材目录 | 中 |
 | `core/config.py` | 需覆盖配置热更新、环境变量覆盖 | 中 |
-| `core/ai_planner.py` | AI API 调用需要网络 + API Key | 低 |
 | GUI 模块（ui/） | PyQt6 模块适合手动测试 + 离线渲染 | 低 |
 
 ---
@@ -788,7 +790,7 @@ jobs:
           modules = ['core.config','core.models','core.database',
                      'core.matcher','core.rules','core.timeline',
                      'core.ffmpeg','core.renderer','core.pipeline',
-                     'core.scanner','core.ai_planner']
+                     'core.scanner','core.ai_planner','core.downloader']
           for m in modules:
               __import__(m)
               print(f'  OK  {m}')
@@ -807,4 +809,4 @@ py tests/run_all_tests.py
 
 ---
 
-> 本文档对应 ClipForge v0.2.0 | 119 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.2.0 | 153 测试通过 | 最后更新 2026-05-27

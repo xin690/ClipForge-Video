@@ -77,6 +77,9 @@ class MainWindow(QMainWindow):
         self.preview_panel.play(path)
         self.tabs.setCurrentWidget(self.preview_panel)
 
+    def stop_playback(self):
+        self.preview_panel.stop()
+
     def _setup_tabs(self):
         self.tabs = QTabWidget()
         self.script_editor = ScriptEditorTab(self)

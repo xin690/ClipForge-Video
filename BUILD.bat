@@ -41,10 +41,12 @@ echo [5/5] Copy resources...
 :: WARNING: config.yaml is copied as-is — ensure no secrets before building
 if exist "dist\ClipForge.exe" (
     if not exist "dist\config.yaml" copy config.yaml dist\config.yaml >nul
+    if not exist "dist\config.template.yaml" copy config.template.yaml dist\config.template.yaml >nul
     if not exist "dist\scripts" mkdir dist\scripts >nul 2>&1
     if exist "scripts" xcopy /E /I /Y scripts\*.json dist\scripts >nul 2>&1
     if not exist "dist\assets\videos" mkdir dist\assets\videos >nul 2>&1
     if not exist "dist\assets\bgm" mkdir dist\assets\bgm >nul 2>&1
+    if exist "app.ico" copy app.ico dist\ >nul
     echo.
     echo ============================================
     echo  SUCCESS: dist\ClipForge.exe

@@ -21,19 +21,21 @@
 
 ## 实际实施状态总结
 
-> 最后更新：2026-05-27 | 119/119 测试通过 | 第三轮修复完成（#1-#25）+ 管线重构
+> 最后更新：2026-05-27 | 131/131 测试通过 | AI 内容规划 + 素材自动下载 完成
 
 ### 项目状态
 
 | 项目 | 状态 | 说明 |
 |---|---|---|
-| 所有 13 个核心模块 | ✅ 完成 | models, config, database, scanner, matcher, rules, timeline, tts, subtitle, renderer, ffmpeg, pipeline, script |
-| 所有 8 个 GUI 模块 | ✅ 完成 | main_window, theme, dialogs, widgets, asset_panel, timeline_panel, preview_panel, output_panel |
-| 测试 | ✅ 119/119 通过 | 11 个测试文件，覆盖所有核心模块和新功能 |
+| 所有 15 个核心模块 | ✅ 完成 | models, config, database, scanner, matcher, rules, timeline, tts, subtitle, renderer, ffmpeg, pipeline, ai_planner, downloader, script |
+| 所有 9 个 GUI 模块 | ✅ 完成 | main_window, theme, settings_dialog, script_editor, asset_browser, timeline_view, preview_panel, batch_panel, ai_plan_dialog |
+| 测试 | ✅ 131/131 通过 | 13 个测试文件，覆盖所有核心模块（含 AI 规划 + 下载器）|
 | 端到端渲染 | ✅ 通过 | `e2e_render.py` 输出 24s MP4（H.264 + AAC + 硬字幕 + BGM） |
 | FFmpeg | ✅ 全量版 | C:\ffmpeg\bin，支持 libass/vpx/x265/opus 等全部滤镜 |
 | xfade 转场 | ✅ 实现 | cut/fade/slide 转场，concat demuxer + xfade 滤镜链 |
 | loudnorm 响度归一化 | ✅ 实现 | EBU R128 标准（I=-16, TP=-1.5, LRA=11） |
+| AI 内容规划 | ✅ 实现 | 主题→AI 生成 Script + 搜索关键词 → 程序下载素材 → 自动扫描 |
+| 素材自动下载 | ✅ 实现 | Pexels/Pixabay API 搜索 + httpx 流式下载 + 增量扫描 |
 | 运镜效果 | ✅ 实现 | static/slow_zoom/pan 三种运镜，通过 zoompan 和 crop 滤镜 |
 | 管线重构 | ✅ 实现 | 视频+音频分离管线，concat demuxer，adelay+atrim 旁白对齐 |
 | 代码清理 | ✅ 完成 | 移除无用导入，清理构建产物，统一编码规范 |
@@ -53,7 +55,7 @@
 | 5 | `FFmpegError` / `AssetNotFoundError` 自定义异常 | DEV_PLAN.md §5.5 | 第三梯队 |
 | 6 | 同义词扩展匹配（synonyms.yaml） | DEV_PLAN.md §2.2 | 第三梯队 |
 | 7 | Whisper 字幕识别 | 架构文档 §十三 | 第三梯队 |
-| 8 | AI 规划层（ai_planner.py） | 架构文档 §十 | 第三梯队 |
+| 8 | AI 规划层（ai_planner.py） | 架构文档 §十 | ✅ 已实现 — 含主题规划 + 搜索关键词 + 素材下载 |
 | 9 | 批量处理（pipeline.py run_batch） | DEV_PLAN.md §9.1 | 第三梯队 |
 | 10 | 自动节奏卡点 | 架构文档 §十七 | 未来 |
 | 11 | 自动封面生成 | 架构文档 §十七 | 未来 |
@@ -135,7 +137,7 @@
 | 5 | FFmpeg execute 重写 | ✅ | 线程化管道读取 + cancel_event |
 | 6 | QThread 崩溃修复 | ✅ | _worker_cleanup() wait + deleteLater |
 | 7 | 编码参数规范化 | ✅ | yuv420p + ar 44100 + timescale 30000 |
-| 8 | 119/119 测试通过 | ✅ | 11 个测试文件全覆盖 |
+| 8 | 153/153 测试通过 | ✅ | 16 个测试文件全覆盖 |
 | 9 | 文档全面更新 | ✅ | 7 个文档文件 v0.2.0 |
 
 #### 第三梯队（增强功能）
@@ -145,7 +147,7 @@
 | 1 | 自定义异常类（FFmpegError, AssetNotFoundError） | 高 | 小 |
 | 2 | 同义词扩展匹配 | 高 | 中 |
 | 3 | Whisper 字幕识别 | 中 | 大 |
-| 4 | AI 规划层（ai_planner.py 集成） | 中 | 大 |
+| 4 | AI 规划层（ai_planner.py 集成 + downloader.py） | 中 | 大 | ✅ 已实现 2026-05-27 |
 | 5 | Pipeline.run_batch 批量处理 | 高 | 中 |
 | 6 | TTS 自动降级（edge-tts→pyttsx3→silent） | 中 | 小 |
 | 7 | 性能基准测试 | 低 | 中 |
@@ -167,6 +169,17 @@
 | BGM 混合简化 | `core/renderer.py` | volume 滤镜 + amix=duration=longest |
 | 原子文件写入 | `core/pipeline.py` | copy2 → tmp → os.replace() |
 | 临时文件清理 | `core/pipeline.py` | _cleanup_temp() 清理 _temp_voice + _temp_subtitle.ass |
+
+#### AI 增强（第四轮）
+
+| 功能 | 文件 | 实现方式 |
+|---|---|---|
+| AI 主题规划 | `core/ai_planner.py` | `plan_from_theme()` 通过 LLM 将主题文案转为完整 Script + 搜索关键词，3次重试 |
+| 搜索关键词生成 | `core/ai_planner.py` | `suggest_search_queries()` 为已有分段生成英文搜索词 |
+| 素材自动下载 | `core/downloader.py` | Pexels/Pixabay API 搜索 + httpx 流式下载 + 自动归档 + 增量扫描 |
+| AI 规划对话框 | `ui/ai_plan_dialog.py` | 主题输入 → AI 规划（QThread）→ 预览 → 下载（QThread）→ 保存脚本 |
+| 下载器设置 | `ui/settings_dialog.py` | 新增"素材下载"标签页（provider/api_key） |
+| 下载器配置 | `config.yaml` / `config.template.yaml` / `config.py` | `downloader.provider/api_key/max_per_query/min_width/timeout` |
 | 字幕 4 元组样式 | `core/subtitle.py` `core/renderer.py` | `_format_ass` 逐对话 `(start, end, text, style)` |
 
 #### 第二梯队新增功能（保留）
@@ -243,7 +256,7 @@
 
 **核心理念：** AI 负责规划，程序负责执行。
 
-**系统输入：** 视频脚本 JSON + 本地素材库（图片、视频、音频）
+**系统输入：** 主题文案（AI 规划 → 脚本 JSON）或 脚本 JSON + 本地素材库（图片、视频、音频）
 
 **系统输出：** 自动生成的视频 MP4（含配音、字幕、转场、BGM）
 
@@ -256,23 +269,28 @@
 ### 1.3 系统流程
 
 ```
-输入脚本 JSON
-    ↓
-素材检索系统（本地标签匹配）
-    ↓
-规则引擎（字幕/转场/运镜规则）
-    ↓
-AI 镜头规划（可选，默认关闭）
-    ↓
-Timeline 时间轴生成
-    ↓
-音频生成（TTS）
-    ↓
-字幕生成
-    ↓
-FFmpeg 自动渲染
-    ↓
-输出 MP4
+  ┌─────────── 输入 A：AI 规划（NEW）───────────┐
+  │  主题文案 → AI 生成脚本 → AI 搜索关键词      │
+  │      → 自动下载素材 → 分类归档 → 扫描入库    │
+  └───────────────┬────────────────────────────┘
+                  ↓
+  ┌─────────── 输入 B：手动操作 ────────────────┐
+  │         脚本 JSON + 本地素材库               │
+  └───────────────┬────────────────────────────┘
+                  ↓
+         素材检索系统（本地标签匹配）
+                  ↓
+         规则引擎（字幕/转场/运镜规则）
+                  ↓
+         Timeline 时间轴生成
+                  ↓
+         音频生成（TTS）
+                  ↓
+         字幕生成
+                  ↓
+         FFmpeg 自动渲染
+                  ↓
+         输出 MP4
 ```
 
 ### 1.4 产品定位
@@ -1684,7 +1702,7 @@ class PreviewPanel(QWidget):
 
 ---
 
-### Phase 11：测试全面覆盖 ✅ 已完成（119/119 测试通过）
+### Phase 11：测试全面覆盖 ✅ 已完成（153/153 测试通过）
 
 #### 11.1 单元测试（pytest）
 

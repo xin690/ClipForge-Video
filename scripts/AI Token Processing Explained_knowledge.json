@@ -1,0 +1,105 @@
+{
+  "title": "AI Token Processing Explained",
+  "duration": 30,
+  "style": "knowledge",
+  "voice": "zh-CN-XiaoxiaoNeural",
+  "bgm": "",
+  "segments": [
+    {
+      "id": 1,
+      "text": "当你输入文字，AI会将它拆分成小片段，这些片段就是Token。",
+      "keywords": [
+        "Token",
+        "AI",
+        "输入",
+        "input",
+        "text",
+        "processing"
+      ],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 2,
+      "text": "每个Token被编码成数字，就像给单词贴上了唯一标签。",
+      "keywords": [
+        "编码",
+        "数字",
+        "标签",
+        "token",
+        "encoding",
+        "number",
+        "sequence",
+        "AI"
+      ],
+      "emotion": "normal",
+      "duration": 5
+    },
+    {
+      "id": 3,
+      "text": "AI模型飞速计算这些Token，分析它们之间的关系。",
+      "keywords": [
+        "计算",
+        "模型",
+        "分析",
+        "AI",
+        "neural",
+        "network",
+        "processing",
+        "tokens"
+      ],
+      "emotion": "strong",
+      "duration": 5
+    },
+    {
+      "id": 4,
+      "text": "它考虑上下文，预测最合理的下一个Token是什么。",
+      "keywords": [
+        "上下文",
+        "预测",
+        "逻辑",
+        "AI",
+        "model",
+        "prediction",
+        "token",
+        "sequence"
+      ],
+      "emotion": "calm",
+      "duration": 5
+    },
+    {
+      "id": 5,
+      "text": "逐步生成完整回答，每个Token串联成流畅的内容。",
+      "keywords": [
+        "生成",
+        "回答",
+        "串联",
+        "AI",
+        "generating",
+        "tokens",
+        "to",
+        "text",
+        "output"
+      ],
+      "emotion": "happy",
+      "duration": 5
+    },
+    {
+      "id": 6,
+      "text": "最终结果返回给你，整个过程只需几秒。",
+      "keywords": [
+        "返回",
+        "结果",
+        "快速",
+        "AI",
+        "output",
+        "result",
+        "token",
+        "processing",
+        "complete"
+      ],
+      "emotion": "normal",
+      "duration": 4
+    }
+  ]
+}

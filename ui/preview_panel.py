@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QSlider, QFrame,
 )
 from PyQt6.QtCore import Qt, QUrl, QTimer
-from PyQt6.QtMultimedia import QMediaPlayer
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 
 
@@ -50,11 +50,13 @@ class PreviewPanel(QWidget):
         layout.addLayout(controls)
 
         self.player = QMediaPlayer()
+        self.audio_output = QAudioOutput()
+        self.player.setAudioOutput(self.audio_output)
         self.player.setVideoOutput(self.video_widget)
         self.player.positionChanged.connect(self._on_position_changed)
         self.player.durationChanged.connect(self._on_duration_changed)
         self.player.playbackStateChanged.connect(self._on_state_changed)
-        self.volume_slider.valueChanged.connect(lambda v: self.player.setVolume(v))
+        self.volume_slider.valueChanged.connect(lambda v: self.audio_output.setVolume(v / 100.0))
 
     def play(self, file_path: str):
         self.player.setSource(QUrl.fromLocalFile(file_path))

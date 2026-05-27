@@ -61,7 +61,7 @@ def get(key: str, default: Any = None) -> Any:
 
 def _default_config() -> dict[str, Any]:
     return {
-        "app": {"name": "ClipForge", "version": "0.1.0"},
+        "app": {"name": "ClipForge", "version": "0.3.0"},
         "paths": {
             "assets": "./assets",
             "scripts": "./scripts",
@@ -73,6 +73,7 @@ def _default_config() -> dict[str, Any]:
         "tts": {"engine": "edge-tts", "voice": "zh-CN-XiaoxiaoNeural", "speed": 1.0},
         "subtitle": {"engine": "text", "whisper_model": "tiny", "device": "cpu"},
         "ai": {"enabled": False, "provider": "openai", "api_key": "", "model": "gpt-4o-mini", "max_tokens": 500},
+        "downloader": {"provider": "pexels", "api_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
         "bgm": {"volume": 0.3},
         "logging": {"level": "INFO"},
     }

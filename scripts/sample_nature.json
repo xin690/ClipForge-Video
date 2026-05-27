@@ -2,7 +2,7 @@
   "title": "中国自然风光",
   "duration": 24,
   "style": "knowledge",
-  "voice": "female_01",
+  "voice": "zh-CN-XiaoxiaoNeural",
   "bgm": "bgm_nature.mp3",
   "segments": [
     {

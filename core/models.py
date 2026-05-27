@@ -14,7 +14,7 @@ class Script(BaseModel):
     title: str
     duration: int = Field(gt=0, le=3600)
     style: str = "knowledge"
-    voice: str = "female_01"
+    voice: str = "zh-CN-XiaoxiaoNeural"
     bgm: str = ""
     segments: list[Segment] = Field(min_length=1)
 

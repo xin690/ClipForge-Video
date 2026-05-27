@@ -16,7 +16,7 @@ Level 6: 性能测试 ─── 资源消耗基准
 ## Level 1: 单元测试（完全自动化）
 
 ```bash
-# 运行全部 119 个测试
+# 运行全部 153 个测试
 pytest tests/ -v --tb=short
 
 # 带覆盖率报告
@@ -58,9 +58,10 @@ import os; os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 modules = ['core.config','core.models','core.database','core.matcher',
     'core.rules','core.timeline','core.tts','core.subtitle',
     'core.ffmpeg','core.renderer','core.pipeline','core.scanner',
-    'core.ai_planner',
+    'core.ai_planner','core.downloader',
     'ui.resources','ui.worker','ui.main_window','ui.script_editor',
-    'ui.asset_browser','ui.timeline_view','ui.batch_panel','ui.settings_dialog']
+    'ui.asset_browser','ui.timeline_view','ui.batch_panel','ui.settings_dialog',
+    'ui.ai_plan_dialog']
 for m in modules:
     __import__(m)
     print(f'OK {m}')
@@ -364,7 +365,7 @@ tests\test_pipeline.bat
 该批处理文件会自动执行：
 1. 检查 Python / FFmpeg 环境
 2. 安装缺失的 Python 依赖
-3. 运行 119 个 pytest 单元测试
+3. 运行 153 个 pytest 单元测试
 4. 导入验证 22 个模块
 5. 测试素材扫描 + Timeline 构建
 6. 尝试完整渲染管线（可选）
@@ -389,7 +390,7 @@ tests\test_pipeline.bat
 
 | 等级 | 测试项 | 必须通过 |
 |---|---|---|
-| P0 | 119 个单元测试 | ✓ |
+| P0 | 153 个单元测试 | ✓ |
 | P0 | 22 个模块导入 | ✓ |
 | P1 | 素材扫描 + 搜索 | ✓ |
 | P1 | Timeline 构建 + 校验 | ✓ |

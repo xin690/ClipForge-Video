@@ -18,7 +18,7 @@ def sample_script():
         "title": "测试视频",
         "duration": 15,
         "style": "knowledge",
-        "voice": "female_01",
+        "voice": "zh-CN-XiaoxiaoNeural",
         "bgm": "",
         "segments": [
             {"id": 1, "text": "第一段测试文本", "keywords": ["测试", "知识"], "emotion": "normal", "duration": 5},

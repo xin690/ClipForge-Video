@@ -1,0 +1,64 @@
+{
+  "title": "Token消耗全流程详解",
+  "duration": 30,
+  "style": "knowledge",
+  "voice": "zh-CN-XiaoxiaoNeural",
+  "bgm": "",
+  "segments": [
+    {
+      "id": 1,
+      "text": "当你输入一个问题，AI系统会首先将文本分解成一个个token，每个词或字符都是一个单元。",
+      "keywords": [
+        "token分解",
+        "文本解析",
+        "AI输入"
+      ],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 2,
+      "text": "然后，这些token被送入模型进行推理计算，模型通过多层网络处理生成新token。",
+      "keywords": [
+        "模型推理",
+        "token处理",
+        "神经网络"
+      ],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 3,
+      "text": "在推理过程中，每个token的消耗取决于模型大小和参数数量，这是计算资源的核心开销。",
+      "keywords": [
+        "token消耗",
+        "模型大小",
+        "参数计算"
+      ],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 4,
+      "text": "最终，模型返回输出token，系统会累加总消耗量，这就是你支付的token费用来源。",
+      "keywords": [
+        "输出token",
+        "消耗结算",
+        "费用计算"
+      ],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 5,
+      "text": "整个过程高效且透明，理解token消耗让你更好管理AI使用成本。",
+      "keywords": [
+        "全流程",
+        "透明理解",
+        "成本管理"
+      ],
+      "emotion": "happy",
+      "duration": 6
+    }
+  ]
+}

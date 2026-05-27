@@ -179,8 +179,19 @@ class Renderer:
             log.info("最终输出: %d 帧 %.1fs", final_frames, self._get_clip_duration(final_path))
 
             tmp = output_path + ".tmp"
-            shutil.copy2(final_path, tmp)
-            os.replace(tmp, output_path)
+            try:
+                shutil.copy2(final_path, tmp)
+                os.replace(tmp, output_path)
+            except OSError:
+                log.warning("输出文件被占用，使用唯一文件名")
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                base, ext = os.path.splitext(output_path)
+                import time
+                output_path = f"{base}_{int(time.time())}{ext}"
+                shutil.copy2(final_path, output_path)
             self._report(progress_callback, 1.0, "渲染完成")
             log.info("渲染完成: %s", output_path)
             return output_path

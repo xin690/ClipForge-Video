@@ -61,8 +61,19 @@ class SettingsDialog(QDialog):
 
         self.combo_voice = QComboBox()
         self.combo_voice.addItems([
-            "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoyiNeural",
-            "zh-CN-YunxiNeural", "zh-CN-YunyangNeural",
+            "zh-CN-XiaoxiaoNeural",  "zh-CN-XiaoyiNeural",
+            "zh-CN-YunxiNeural",     "zh-CN-YunyangNeural",
+            "zh-CN-XiaochenNeural",  "zh-CN-XiaohanNeural",
+            "zh-CN-XiaomengNeural",  "zh-CN-XiaomoNeural",
+            "zh-CN-XiaoqiuNeural",   "zh-CN-XiaoruiNeural",
+            "zh-CN-XiaoshuangNeural","zh-CN-XiaoxuanNeural",
+            "zh-CN-XiaoyanNeural",   "zh-CN-XiaoyouNeural",
+            "zh-CN-YunzeNeural",     "zh-CN-YunhaoNeural",
+            "zh-CN-YunjianNeural",   "zh-CN-YunxiaNeural",
+            "zh-TW-HsiaoChenNeural", "zh-TW-HsiaoYuNeural",
+            "zh-TW-YunJheNeural",
+            "zh-HK-HiuGaaiNeural",   "zh-HK-HiuMaanNeural",
+            "zh-HK-WanLungNeural",
         ])
         tts_layout.addRow("语音:", self.combo_voice)
 
@@ -125,6 +136,28 @@ class SettingsDialog(QDialog):
 
         tabs.addTab(ai_tab, "AI")
 
+        dl_tab = QWidget()
+        dl_layout = QFormLayout(dl_tab)
+
+        self.combo_dl_provider = QComboBox()
+        self.combo_dl_provider.addItems(["pexels", "pixabay"])
+        dl_layout.addRow("素材提供商:", self.combo_dl_provider)
+
+        self.input_dl_api_key = QLineEdit()
+        self.input_dl_api_key.setPlaceholderText("输入 Pexels/Pixabay API Key (免费注册)")
+        self.input_dl_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        dl_layout.addRow("API Key:", self.input_dl_api_key)
+
+        dl_note = QLabel(
+            "注册地址: https://www.pexels.com/api/ (免费，200次/小时)\n"
+            "或 https://pixabay.com/api/docs/ (免费，5000次/月)"
+        )
+        dl_note.setWordWrap(True)
+        dl_note.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        dl_layout.addRow("", dl_note)
+
+        tabs.addTab(dl_tab, "素材下载")
+
         layout.addWidget(tabs, 1)
 
         btn_layout = QHBoxLayout()
@@ -167,6 +200,8 @@ class SettingsDialog(QDialog):
         self.combo_ai_provider.setCurrentText(get("ai.provider", "openai"))
         self.input_api_key.setText(get("ai.api_key", ""))
         self.combo_ai_model.setCurrentText(get("ai.model", "gpt-4o-mini"))
+        self.combo_dl_provider.setCurrentText(get("downloader.provider", "pexels"))
+        self.input_dl_api_key.setText(get("downloader.api_key", ""))
 
     def _save(self):
         res_text = self.combo_resolution.currentText()
@@ -189,6 +224,8 @@ class SettingsDialog(QDialog):
         self._config["ai"]["provider"] = self.combo_ai_provider.currentText()
         self._config["ai"]["api_key"] = self.input_api_key.text()
         self._config["ai"]["model"] = self.combo_ai_model.currentText()
+        self._config["downloader"]["provider"] = self.combo_dl_provider.currentText()
+        self._config["downloader"]["api_key"] = self.input_dl_api_key.text()
 
         save_config(self._config)
         QMessageBox.information(self, "提示", "设置已保存")

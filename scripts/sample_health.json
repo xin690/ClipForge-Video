@@ -2,7 +2,7 @@
   "title": "健康生活小贴士",
   "duration": 18,
   "style": "entertainment",
-  "voice": "female_01",
+  "voice": "zh-CN-XiaomoNeural",
   "bgm": "bgm_upbeat.mp3",
   "segments": [
     {

@@ -208,13 +208,66 @@ def main():
     check("Rule applied - emotion style", timeline.timeline[1].subtitle_style == "big_yellow")
 
     # ================================================================
-    section("5/5: Module Imports")
+    section("6/6: AI Planner & Downloader")
+    # ================================================================
+    from core.ai_planner import AIPlanner
+    from core.downloader import Downloader, _sanitize_filename
+
+    plan = AIPlanner._extract_json('{"title":"test","duration":10,"segments":[{"id":1,"text":"t","keywords":["a"],"emotion":"normal","duration":5}]}')
+    check("AI JSON extract valid", plan is not None and plan.get("title") == "test")
+
+    plan2 = AIPlanner._extract_json('```json\n{"title":"x","duration":5,"segments":[]}\n```')
+    check("AI JSON extract markdown", plan2 is not None and plan2.get("title") == "x")
+
+    plan3 = AIPlanner._extract_json("not json")
+    check("AI JSON extract invalid returns None", plan3 is None)
+
+    plan4 = AIPlanner._extract_json('{"title":"中国自然","duration":24,"segments":[{"id":1,"text":"高山","keywords":["高山"],"emotion":"strong","duration":5}]}')
+    check("AI JSON extract unicode", plan4 is not None and plan4["title"] == "中国自然")
+
+    planner_disabled = AIPlanner({"ai": {"enabled": False}})
+    check("AI planner disabled returns None", planner_disabled.plan_from_theme("test") is None)
+
+    planner_no_key = AIPlanner({"ai": {"enabled": True, "api_key": ""}})
+    check("AI planner no key returns None", planner_no_key.plan_from_theme("test") is None)
+
+    planner_init = AIPlanner({"ai": {"enabled": True, "provider": "deepseek", "api_key": "sk-test", "model": "deepseek-chat", "max_tokens": 1000}})
+    check("AI planner init", planner_init.provider == "deepseek" and planner_init.model == "deepseek-chat")
+
+    fname = _sanitize_filename("hello world")
+    check("Downloader sanitize basic", fname == "hello_world")
+
+    fname2 = _sanitize_filename('test:file<name>')
+    check("Downloader sanitize special", ":" not in fname2 and "<" not in fname2)
+
+    fname3 = _sanitize_filename("///")
+    check("Downloader sanitize empty", fname3 == "untitled")
+
+    dl = Downloader({"downloader": {"provider": "pexels", "api_key": "", "max_per_query": 5}})
+    check("Downloader init", dl.provider == "pexels" and dl.max_per_query == 5)
+
+    dl_empty = Downloader({})
+    check("Downloader defaults", dl_empty.provider == "pexels")
+
+    check("Downloader no api search", dl.search("test") == [])
+
+    quality_test = Downloader._pick_best_video_quality([
+        {"quality": "sd", "link": "s"},
+        {"quality": "hd", "link": "h"},
+    ])
+    check("Downloader pick best quality", quality_test["link"] == "h")
+
+    quality_empty = Downloader._pick_best_video_quality([])
+    check("Downloader pick empty quality", quality_empty is None)
+
+    # ================================================================
+    section("7/7: Module Imports")
     # ================================================================
     modules = [
         "core.config", "core.models", "core.database", "core.scanner",
         "core.matcher", "core.rules", "core.timeline", "core.tts",
         "core.subtitle", "core.ffmpeg", "core.renderer", "core.pipeline",
-        "core.ai_planner",
+        "core.ai_planner", "core.downloader",
         # ui.resources and ui.worker need PyQt6; tested separately
 
     ]

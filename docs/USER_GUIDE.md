@@ -206,17 +206,19 @@ ClipForge/
 │   ├── subtitle.py          # 字幕生成（ASS 格式）
 │   ├── ffmpeg.py            # FFmpeg 命令封装 + 执行
 │   ├── renderer.py          # 渲染编排器
-│   ├── ai_planner.py        # AI 规划层（默认关闭）
+│   ├── ai_planner.py        # AI 规划层（主题规划 + 搜索关键词）
+│   ├── downloader.py        # NEW 素材自动下载（Pexels/Pixabay）
 │   └── pipeline.py          # 完整工作流管线
 │
 ├── ui/                      # PyQt6 图形界面
 │   ├── main_window.py       # 主窗口
-│   ├── script_editor.py     # 脚本编辑器
+│   ├── script_editor.py     # 脚本编辑器（含 AI 规划按钮）
+│   ├── ai_plan_dialog.py    # NEW AI 视频规划对话框
 │   ├── asset_browser.py     # 素材浏览器
 │   ├── timeline_view.py     # 时间轴可视化
 │   ├── batch_panel.py       # 批量处理面板
 │   ├── preview_panel.py     # 预览面板
-│   ├── settings_dialog.py   # 设置对话框
+│   ├── settings_dialog.py   # 设置对话框（含素材下载标签页）
 │   ├── worker.py            # 后台工作线程
 │   └── resources.py         # 样式表
 │
@@ -231,7 +233,7 @@ ClipForge/
 ├── cache/                   # 缓存（TTS / 渲染临时文件）
 ├── database/                # SQLite 数据库
 │
-├── tests/                   # 测试（119 个）
+├── tests/                   # 测试（131 个）
 └── docs/                    # 文档
     ├── DEV_PLAN.md          # 开发计划
     └── USER_GUIDE.md        # 本文件
@@ -274,16 +276,31 @@ subtitle:
 
 ai:
   enabled: false          # 是否启用 AI 规划
-  provider: openai        # openai | qwen
+  provider: openai        # openai | qwen | deepseek
   api_key: ""             # API Key
   model: gpt-4o-mini      # 模型名
   max_tokens: 500
+
+downloader:
+  provider: pexels        # 素材提供商（pexels / pixabay）
+  api_key: ""             # API Key（免费注册: https://www.pexels.com/api/）
+  max_per_query: 3        # 每次搜索返回数
+  min_width: 1920         # 最低宽度
+  timeout: 120            # 下载超时（秒）
 
 bgm:
   volume: 0.3             # BGM 在最终混音中的音量比例（0.0~1.0）
 
 logging:
   level: INFO             # DEBUG | INFO | WARNING | ERROR
+
+# AI 视频规划完整流程（新增）:
+#   1. 配置 ai.enabled=true + ai.api_key
+#   2. 配置 downloader.api_key（Pexels/Pixabay 免费注册）
+#   3. 软件中点击 "AI 规划" → 输入主题文案
+#   4. AI 生成脚本分段 + 素材搜索关键词
+#   5. 一键下载素材 → 自动归档到 assets/videos/
+#   6. 保存脚本 JSON → 扫描素材 → 生成视频
 ```
 
 ---
@@ -420,7 +437,7 @@ py e2e_render.py scripts/sample_commerce.json
 py -m pytest tests/ -v
 ```
 
-119 个测试覆盖所有核心模块。
+153 个测试覆盖所有核心模块。
 
 ---
 
@@ -511,4 +528,4 @@ dist/
 
 ---
 
-> 本文档对应 ClipForge v0.2.0 | 119 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.2.0 | 153 测试通过 | 最后更新 2026-05-27

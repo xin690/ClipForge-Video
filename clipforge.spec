@@ -1,0 +1,101 @@
+# -*- mode: python ; coding: utf-8 -*-
+import sys
+from pathlib import Path
+
+block_cipher = None
+
+a = Analysis(
+    ['app.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('config.yaml', '.'),
+        ('scripts', 'scripts'),
+        ('assets/videos/*.mp4', 'assets/videos'),
+        ('assets/bgm/*.mp3', 'assets/bgm'),
+    ],
+    hiddenimports=[
+        'PyQt6.QtMultimedia',
+        'PyQt6.QtMultimediaWidgets',
+        'edge_tts',
+        'pyttsx3',
+        'comtypes',
+        'comtypes.client',
+        'comtypes.gen',
+        'yaml',
+        'pydantic',
+        'httpx',
+        'core.config',
+        'core.models',
+        'core.database',
+        'core.scanner',
+        'core.matcher',
+        'core.rules',
+        'core.timeline',
+        'core.tts',
+        'core.subtitle',
+        'core.ffmpeg',
+        'core.renderer',
+        'core.pipeline',
+        'core.ai_planner',
+        'core.downloader',
+        'ui.resources',
+        'ui.ai_plan_dialog',
+        'ui.main_window',
+        'ui.script_editor',
+        'ui.asset_browser',
+        'ui.timeline_view',
+        'ui.preview_panel',
+        'ui.batch_panel',
+        'ui.settings_dialog',
+        'ui.worker',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageFont',
+        'PIL.ImageDraw',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'tkinter',
+        'matplotlib',
+        'scipy',
+        'numpy.random',
+        'faster_whisper',
+        'whisper',
+        'torch',
+    ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='ClipForge',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    # NOTE: icon=None due to Python 3.14 + win32ctypes UpdateResourceW bug
+    # tracked upstream: https://github.com/nexB/win32ctypes/issues
+    # Set to 'app.ico' once upstream fix is released
+    icon=None,
+)

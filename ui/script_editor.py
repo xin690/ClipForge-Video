@@ -85,6 +85,10 @@ class ScriptEditorTab(QWidget):
         self.btn_validate.clicked.connect(self._validate_script)
         header.addWidget(self.btn_validate)
 
+        self.btn_ai_plan = QPushButton("AI 规划")
+        self.btn_ai_plan.clicked.connect(self._open_ai_plan)
+        header.addWidget(self.btn_ai_plan)
+
         header.addWidget(self._make_vsep())
 
         self.btn_generate = QPushButton("▶ 生成视频")
@@ -129,7 +133,21 @@ class ScriptEditorTab(QWidget):
         prop_form.addRow("风格:", self.combo_style)
 
         self.combo_voice = QComboBox()
-        self.combo_voice.addItems(["female_01", "male_01"])
+        self.combo_voice.addItems([
+            "zh-CN-XiaoxiaoNeural",  "zh-CN-XiaoyiNeural",
+            "zh-CN-YunxiNeural",     "zh-CN-YunyangNeural",
+            "zh-CN-XiaochenNeural",  "zh-CN-XiaohanNeural",
+            "zh-CN-XiaomengNeural",  "zh-CN-XiaomoNeural",
+            "zh-CN-XiaoqiuNeural",   "zh-CN-XiaoruiNeural",
+            "zh-CN-XiaoshuangNeural","zh-CN-XiaoxuanNeural",
+            "zh-CN-XiaoyanNeural",   "zh-CN-XiaoyouNeural",
+            "zh-CN-YunzeNeural",     "zh-CN-YunhaoNeural",
+            "zh-CN-YunjianNeural",   "zh-CN-YunxiaNeural",
+            "zh-TW-HsiaoChenNeural", "zh-TW-HsiaoYuNeural",
+            "zh-TW-YunJheNeural",
+            "zh-HK-HiuGaaiNeural",   "zh-HK-HiuMaanNeural",
+            "zh-HK-WanLungNeural",
+        ])
         prop_form.addRow("配音:", self.combo_voice)
 
         self.input_bgm = QLineEdit()
@@ -187,11 +205,13 @@ class ScriptEditorTab(QWidget):
             QMessageBox.warning(self, "加载失败", str(e))
 
     def _new_script(self):
+        from core.config import get as cfg_get
+        default_voice = cfg_get("tts.voice", "zh-CN-XiaoxiaoNeural")
         default = {
             "title": "我的视频",
             "duration": 30,
             "style": "knowledge",
-            "voice": "female_01",
+            "voice": default_voice,
             "bgm": "",
             "segments": [
                 {"id": 1, "text": "请输入第一段文案", "keywords": ["关键词"], "emotion": "normal", "duration": 5},
@@ -253,8 +273,12 @@ class ScriptEditorTab(QWidget):
             idx = self.combo_style.findText(style)
             if idx >= 0:
                 self.combo_style.setCurrentIndex(idx)
-            voice = data.get("voice", "female_01")
+            voice = data.get("voice", "")
             idx = self.combo_voice.findText(voice)
+            if idx < 0:
+                from core.config import get as cfg_get
+                voice = cfg_get("tts.voice", "zh-CN-XiaoxiaoNeural")
+                idx = self.combo_voice.findText(voice)
             if idx >= 0:
                 self.combo_voice.setCurrentIndex(idx)
             self.input_bgm.setText(data.get("bgm", ""))
@@ -326,10 +350,19 @@ class ScriptEditorTab(QWidget):
                 if item:
                     item.setText(str(i + 1))
 
+    def _open_ai_plan(self):
+        from ui.ai_plan_dialog import AIPlanDialog
+        dlg = AIPlanDialog(self)
+        dlg.exec()
+
     def _generate_video(self):
         if self._worker and self._worker.isRunning():
             self._worker.cancel()
             return
+
+        self.main_window.stop_playback()
+
+        self._sync_form_to_json()
 
         try:
             data = json.loads(self.editor.toPlainText())

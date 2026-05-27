@@ -127,7 +127,9 @@ class Pipeline:
             self._report(progress_callback, PipelineStep.GENERATE_TTS, 0.0, "生成配音...")
             voice_dir = os.path.join(os.path.dirname(output_path), "_temp_voice")
             voice_segments = [(seg.id, seg.text) for seg in script.segments]
-            tts_module.generate_batch(voice_segments, voice_dir)
+            self.logger.info("TTS voice=%s (script.voice=%s, config.default=%s)",
+                             script.voice, script.voice, self.config.get("tts", {}).get("voice"))
+            tts_module.generate_batch(voice_segments, voice_dir, voice=script.voice)
             voice_files = sorted(
                 [os.path.join(voice_dir, f) for f in os.listdir(voice_dir) if f.endswith(".wav")],
                 key=lambda x: int(os.path.basename(x).replace("voice_", "").replace(".wav", ""))
