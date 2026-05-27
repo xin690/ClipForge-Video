@@ -104,7 +104,7 @@ class AIPlanner:
    - happy: 轻松/愉悦
    - sad: 感动/思考
    - calm: 平静/总结
-5. 【时长】每段4-8秒，段落之间有**长短节奏变化**（不要全部5秒）
+5. 【时长】总时长控制在目标时长附近（误差允许 ±10 秒），各段 4-10 秒且有**长短节奏变化**
 6. 【搜索词】为每段生成英文搜索关键词（用于Pexels/Pixabay搜索视频素材）
 7. 【情绪曲线】全片应有情绪起伏：开头吸引注意→中间充实内容→结尾感悟/号召
 8. 【配音】根据影片风格和情绪曲线，推荐最适合的 edge-tts 配音角色:
@@ -346,14 +346,21 @@ class AIPlanner:
 
     # ── 核心入口 ────────────────────────────────────────
 
-    def plan_from_theme(self, theme: str, style: str = "knowledge") -> Optional[dict]:
+    def plan_from_theme(self, theme: str, style: str = "knowledge", target_duration: int = 0) -> Optional[dict]:
         """从主题文案生成视频脚本 + 素材搜索关键词。
+
+        Args:
+            theme: 视频主题文案
+            style: 视频风格
+            target_duration: 目标总时长（秒），0 表示不限制
 
         Returns:
             dict with keys "script" (Script) and "search_queries" (list[dict])。
             失败返回 None。
         """
         user_prompt = f"主题: {theme}\n风格: {style}"
+        if target_duration > 0:
+            user_prompt += f"\n目标时长: {target_duration}秒"
         max_retries = 3
 
         for attempt in range(max_retries):
@@ -418,8 +425,8 @@ class AIPlanner:
         script.duration = total
         return script
 
-    def plan_from_theme_v2(self, theme: str, style: str = "knowledge") -> Optional[dict]:
-        result = self.plan_from_theme(theme, style)
+    def plan_from_theme_v2(self, theme: str, style: str = "knowledge", target_duration: int = 0) -> Optional[dict]:
+        result = self.plan_from_theme(theme, style, target_duration=target_duration)
         if not result:
             return None
 

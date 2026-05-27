@@ -43,15 +43,16 @@ class V2PlanWorker(QThread):
     finished_signal = pyqtSignal(object)
     error_signal = pyqtSignal(str)
 
-    def __init__(self, planner: AIPlanner, theme: str, style: str):
+    def __init__(self, planner: AIPlanner, theme: str, style: str, target_duration: int = 0):
         super().__init__()
         self.planner = planner
         self.theme = theme
         self.style = style
+        self.target_duration = target_duration
 
     def run(self):
         try:
-            result = self.planner.plan_from_theme_v2(self.theme, self.style)
+            result = self.planner.plan_from_theme_v2(self.theme, self.style, target_duration=self.target_duration)
             self.finished_signal.emit(result)
         except Exception as e:
             self.error_signal.emit(str(e))
@@ -141,6 +142,18 @@ class AIPlanDialog(QDialog):
         style_row.addWidget(self._style_desc_label)
         style_row.addStretch()
         input_layout.addRow("视频风格:", style_row)
+
+        time_row = QHBoxLayout()
+        self.target_duration_spin = QSpinBox()
+        self.target_duration_spin.setRange(0, 600)
+        self.target_duration_spin.setValue(0)
+        self.target_duration_spin.setSuffix(" 秒")
+        self.target_duration_spin.setSpecialValueText("不限制")
+        self.target_duration_spin.setFixedWidth(120)
+        time_row.addWidget(self.target_duration_spin)
+        time_row.addWidget(QLabel("（输入目标总时长，AI 将按此规划段数）"))
+        time_row.addStretch()
+        input_layout.addRow("目标时长:", time_row)
 
         layout.addWidget(input_group)
 
@@ -324,8 +337,9 @@ class AIPlanDialog(QDialog):
         self.result_tabs.setVisible(False)
 
         planner = AIPlanner(config)
+        target_dur = self.target_duration_spin.value()
         self._plan_worker = V2PlanWorker(
-            planner, theme, self.style_combo.currentText()
+            planner, theme, self.style_combo.currentText(), target_duration=target_dur
         )
         self._plan_worker.finished_signal.connect(self._on_plan_finished)
         self._plan_worker.error_signal.connect(self._on_plan_error)
