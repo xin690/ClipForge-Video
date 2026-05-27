@@ -308,8 +308,11 @@ class Renderer:
 
     def _render_clip_placeholder(self, item: TimelineItem, duration: float, out_path: str, w: int, h: int) -> bool:
         color_map = {
-            "normal": "blue", "strong": "red", "happy": "green",
-            "sad": "gray", "calm": "lightblue",
+            "normal": "blue", "big_yellow": "gold", "bold": "red",
+            "soft_white": "gray", "calm": "lightblue", "strong": "gold",
+            "happy": "red", "sad": "gray", "knowledge": "steelblue",
+            "news": "white", "entertainment": "green", "commerce": "gold",
+            "scifi": "cyan", "tech": "limegreen", "custom": "blue",
         }
         color = color_map.get(item.subtitle_style, "blue")
         vf_full = f"fps={self.fps},scale={w}:{h},format=yuv420p,setsar=1"

@@ -56,12 +56,6 @@ class SubtitleStyleRule(Rule):
         emotion = ctx.get("emotion", "normal")
         result = dict(self.EMOTION_MAP.get(emotion, self.EMOTION_MAP["normal"]))
 
-        style = ctx.get("style")
-        force = self.STYLE_FORCE.get(style) if style else None
-        if force:
-            result["style"] = force
-            result["animation"] = "typing" if style == "scifi" else "none"
-
         from core.config import get_config
         sub_cfg = get_config().get("subtitle", {})
         if sub_cfg.get("font_family"):
@@ -69,6 +63,12 @@ class SubtitleStyleRule(Rule):
             cfg_anim = sub_cfg.get("animation", "none")
             if cfg_anim in ("none", "pulse", "swing", "fadein", "scale", "typing"):
                 result["animation"] = cfg_anim
+
+        style = ctx.get("style")
+        force = self.STYLE_FORCE.get(style) if style else None
+        if force:
+            result["style"] = force
+            result["animation"] = "typing" if style == "scifi" else "none"
 
         return {"subtitle": result, "subtitle_animation": result["animation"]}
 

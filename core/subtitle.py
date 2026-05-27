@@ -50,7 +50,7 @@ class SubtitleGenerator:
 
     def generate_from_text(
         self,
-        segments: list[tuple[float, float, str, Optional[str]]],
+        segments: list,
         output_path: str,
         style: str = "normal",
     ) -> str:

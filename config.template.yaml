@@ -24,6 +24,14 @@ tts:
 
 subtitle:
   engine: text
+  font_family: Microsoft YaHei
+  font_size: 36
+  font_color: "#FFFFFF"
+  bold: false
+  outline: 2
+  shadow: 1
+  position: bottom
+  animation: none
   whisper_model: tiny
   device: cpu
 
