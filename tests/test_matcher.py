@@ -83,10 +83,19 @@ class TestMatcher:
             assert results[0][1] >= results[1][1]
 
     def test_emotion_tone_score(self, matcher):
-        results = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal")
-        assert len(results) >= 0
+        results_normal = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal")
+        results_strong = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="strong")
+        assert len(results_normal) >= 0
+        assert len(results_strong) >= 0
 
     def test_diversity_score(self, matcher):
         prev = Asset(file="gym01.mp4", type="video", tags=["健身", "运动"])
-        results = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal", prev_asset=prev)
-        assert len(results) >= 0
+        results_no_prev = matcher.match(text="减脂", keywords=["减脂"], top_k=3)
+        results_with_prev = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal", prev_asset=prev)
+        assert len(results_no_prev) >= 0
+        assert len(results_with_prev) >= 0
+        if prev.file == "gym01.mp4":
+            gym01_scores = [s for a, s in results_with_prev if a.file == "gym01.mp4"]
+            food01_scores = [s for a, s in results_with_prev if a.file == "food01.mp4"]
+            if gym01_scores and food01_scores:
+                assert food01_scores[0] >= gym01_scores[0], "diversity penalty should reduce previous asset score"

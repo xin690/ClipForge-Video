@@ -17,6 +17,7 @@ import hashlib
 import logging
 from pathlib import Path
 from typing import Optional
+from core.config import get_config
 from core.models import Asset, Script, Segment
 
 _log = logging.getLogger("ai_planner")
@@ -445,16 +446,23 @@ class AIPlanner:
         _log.error("AI 规划失败，已重试 %d 次", max_retries)
         return None
 
-    def plan_from_theme_v2(self, theme: str, style: str = "knowledge") -> Optional[dict]:
-        """迭代式剧本规划：生成 → 评审 → 改进 → 评审。
+    def _estimate_segment_durations(self, script: Script) -> Script:
+        voice = script.voice or "zh-CN-XiaoxiaoNeural"
+        cfg = get_config()
+        speed = cfg.get("tts", {}).get("speed", 1.0)
+        total = 0
+        for seg in script.segments:
+            try:
+                from core.tts import preview_duration
+                tts_dur = preview_duration(seg.text, voice, speed)
+                seg.duration = max(int(round(tts_dur)), seg.duration)
+            except Exception:
+                pass
+            total += seg.duration
+        script.duration = total
+        return script
 
-        Returns:
-            dict with keys:
-              - "script" (Script) - 最终版
-              - "search_queries" (list[dict])
-              - "versions" (list[dict]) - 所有版本 {"script": dict, "critiques": list[str]}
-            失败返回 None。
-        """
+    def plan_from_theme_v2(self, theme: str, style: str = "knowledge") -> Optional[dict]:
         result = self.plan_from_theme(theme, style)
         if not result:
             return None
@@ -471,13 +479,11 @@ class AIPlanner:
 
             critiques = self._critique_script(script_dict)
 
-            # L3 早停
             if not critiques:
                 _log.info("自审无问题，跳过后续修订")
                 versions.append({"script": script_dict, "critiques": []})
                 break
 
-            # 文案问题走润色而非全量修订
             text_only = all("文案" in c or "文字" in c for c in critiques)
             if text_only:
                 for seg_data in script_dict.get("segments", []):
@@ -493,7 +499,6 @@ class AIPlanner:
             script_dict = revised
             versions.append({"script": revised, "critiques": critiques})
 
-        # 最终验证
         final_segs = script_dict.get("segments", [])
         if not final_segs:
             return result
@@ -507,6 +512,7 @@ class AIPlanner:
         }
         try:
             final_script = Script(**script_data)
+            final_script = self._estimate_segment_durations(final_script)
         except Exception:
             return result
 
@@ -597,23 +603,25 @@ class AIPlanner:
 
     def _score_emotion_match(self, text: str, assets: list[list[Asset]]) -> list[float]:
         scores = []
+        text_list = text if isinstance(text, list) else [text]
         try:
-            import httpx
             system_prompt = "你是情绪分析专家。判断每段文案与对应素材的情绪匹配度(0-100)，只返回空格分隔的数字列表。"
             lines = []
             for i, seg_assets in enumerate(assets):
+                if i >= len(text_list):
+                    break
                 tags_str = "; ".join(", ".join(a.tags) for a in seg_assets[:3])
-                lines.append(f"段{i}: 文案=\"{text[i] if isinstance(text, list) else text}\" 素材标签=\"{tags_str}\"")
+                lines.append(f"段{i}: 文案=\"{text_list[i]}\" 素材标签=\"{tags_str}\"")
             user_prompt = "\n".join(lines)
-            response = httpx.post(
-                self._api_url(),
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "max_tokens": 200},
-                timeout=30,
+            content = self._cached_call(
+                "emotion_match",
+                system_prompt, user_prompt,
+                {"segments": lines, "model": self.model},
+                max_tokens=200,
             )
-            data = response.json()
-            nums = re.findall(r"\d+", data["choices"][0]["message"]["content"])
-            scores = [float(n) / 100.0 for n in nums[:len(assets)]]
+            if content:
+                nums = re.findall(r"\d+", content)
+                scores = [float(n) / 100.0 for n in nums[:len(assets)]]
         except Exception:
             pass
         while len(scores) < len(assets):

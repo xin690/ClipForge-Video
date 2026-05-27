@@ -43,6 +43,7 @@ class TimelineItem(BaseModel):
     camera: str = "static"
     voice_file: Optional[str] = None
     bgm_file: Optional[str] = None
+    feedback: Optional[Feedback] = None
 
 
 class Timeline(BaseModel):

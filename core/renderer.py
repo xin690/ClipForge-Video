@@ -622,7 +622,7 @@ class Renderer:
         try:
             clip_files: list[str] = []
             for i, item in enumerate(timeline.timeline):
-                if segment_ids and i not in segment_ids:
+                if segment_ids and (i not in segment_ids):
                     continue
                 item_duration = item.end - item.start
                 out_path = os.path.join(str(temp_workspace), f"clip_{i:04d}.mp4")
@@ -679,7 +679,7 @@ class Renderer:
                 "-i", filelist_path,
                 "-c:v", "libx264", "-preset", p_preset, "-crf", str(p_crf),
                 "-pix_fmt", "yuv420p", "-vsync", "cfr",
-                "-an",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
                 "-movflags", "+faststart",
                 output_path,
             ]

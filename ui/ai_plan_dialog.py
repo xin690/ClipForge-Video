@@ -1,5 +1,6 @@
 import json
 import time
+import hashlib
 import logging
 from pathlib import Path
 
@@ -31,7 +32,7 @@ from core.renderer import Renderer
 
 
 _THUMB_CACHE_DIR = Path("./cache/thumbnails")
-FEEDBACK_OPTIONS = ["satisfied", "dissatisfied: mismatch", "dissatisfied: transition", "dissatisfied: subtitle", "dissatisfied: duration", "dissatisfied: other"]
+FEEDBACK_OPTIONS = ["👍 满意", "👎 画面不匹配", "👎 转场生硬", "👎 字幕问题", "👎 时长不对", "👎 其他"]
 
 _log = logging.getLogger("ui.ai_plan")
 
@@ -239,6 +240,11 @@ class AIPlanDialog(QDialog):
         self.version_combo.setVisible(False)
         toolbar.addWidget(QLabel("版本:"))
         toolbar.addWidget(self.version_combo)
+
+        self.version_compare_btn = QPushButton("版本对比")
+        self.version_compare_btn.setEnabled(False)
+        self.version_compare_btn.clicked.connect(self._on_version_compare)
+        toolbar.addWidget(self.version_compare_btn)
 
         self.refine_btn = QPushButton("润色该段")
         self.refine_btn.setEnabled(False)
@@ -471,7 +477,8 @@ class AIPlanDialog(QDialog):
     def _refresh_asset_grid(self):
         if not self._script:
             return
-        self._asset_selections: dict[int, int] = {}
+        if not hasattr(self, '_asset_selections') or not isinstance(self._asset_selections, dict):
+            self._asset_selections = {}
         segs = self._script.segments
         config = get_config()
         db = Database(get("paths.database", "./database/clipforge.db"))
@@ -499,7 +506,6 @@ class AIPlanDialog(QDialog):
                 text=seg.text, keywords=seg.keywords, top_k=5,
                 emotion=seg.emotion,
             )
-            seg_btns: list[QPushButton] = []
             for rank, (asset, score) in enumerate(candidates):
                 btn = QPushButton()
                 btn.setFixedSize(120, 68)
@@ -508,17 +514,15 @@ class AIPlanDialog(QDialog):
                 btn.setProperty("asset_score", score)
                 btn.setProperty("asset_rank", rank)
                 btn.setProperty("segment_idx", idx)
-                btn.setStyleSheet(self._thumb_style(False))
+                prev_selected = self._asset_selections.get(idx) == asset.file
+                btn.setStyleSheet(self._thumb_style(prev_selected))
                 thumb_path = self._get_thumbnail_path(asset.file)
                 if thumb_path:
                     pix = QPixmap(str(thumb_path))
                     if not pix.isNull():
                         btn.setIconSize(pix.size())
                         btn.setIcon(pix.scaled(116, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-                if len(seg_btns) < rank:
-                    btn.setText(f"#{rank+1}")
                 btn.clicked.connect(lambda _, b=btn, i=idx: self._on_asset_click(b, i))
-                seg_btns.append(btn)
                 row_layout.addWidget(btn)
 
             row_layout.addStretch()
@@ -560,8 +564,8 @@ class AIPlanDialog(QDialog):
 
     def _get_thumbnail_path(self, filename: str) -> str | None:
         _THUMB_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        base = Path(filename).stem
-        cached = _THUMB_CACHE_DIR / f"{base}.jpg"
+        cache_key = hashlib.md5(filename.encode()).hexdigest()[:16]
+        cached = _THUMB_CACHE_DIR / f"{cache_key}.jpg"
         if cached.exists():
             return str(cached)
 
@@ -700,19 +704,19 @@ class AIPlanDialog(QDialog):
             notes = notes_item.text().strip() if notes_item else ""
             feedbacks.append(Feedback(segment_id=seg_id, rating=rating, notes=notes))
 
-        unsatisfied = [fb for fb in feedbacks if not fb.rating.startswith("satisfied")]
+        unsatisfied = [fb for fb in feedbacks if fb.rating.startswith("👎")]
         if unsatisfied:
             config = get_config()
             planner = AIPlanner(config, budget=self._budget)
             if planner.enabled:
                 self.status_label.setText("正在根据反馈重新规划...")
-                fb_text = "\n".join(
+                critiques = [
                     f"段{fb.segment_id}: {fb.rating} - {fb.notes}" for fb in unsatisfied
-                )
+                ]
                 try:
                     result = planner._revise_script(
                         self._script.model_dump(),
-                        f"用户反馈:\n{fb_text}\n请根据反馈优化脚本。"
+                        critiques,
                     )
                     if result and "segments" in result:
                         updated = Script(**result)
@@ -787,6 +791,7 @@ class AIPlanDialog(QDialog):
     def _update_version_selector(self):
         if len(self._versions) > 1:
             self.version_combo.setVisible(True)
+            self.version_compare_btn.setEnabled(True)
             self.version_combo.blockSignals(True)
             self.version_combo.clear()
             for idx, v in enumerate(self._versions):
@@ -822,6 +827,28 @@ class AIPlanDialog(QDialog):
             self.status_label.setText(f"版本 {idx + 1} 评审意见: {'; '.join(critiques[:2])}")
         else:
             self.status_label.setText(f"版本 {idx + 1}（无问题）")
+
+    def _on_version_compare(self):
+        if len(self._versions) < 2:
+            return
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QHBoxLayout, QSplitter
+        dlg = QDialog(self)
+        dlg.setWindowTitle("版本对比")
+        dlg.resize(900, 500)
+        layout = QVBoxLayout(dlg)
+        splitter = QSplitter()
+        v1_text = QTextEdit()
+        v1_text.setReadOnly(True)
+        v2_text = QTextEdit()
+        v2_text.setReadOnly(True)
+        splitter.addWidget(v1_text)
+        splitter.addWidget(v2_text)
+        layout.addWidget(splitter, 1)
+        import json
+        if len(self._versions) >= 2:
+            v1_text.setPlainText(json.dumps(self._versions[-2].get("script", {}), ensure_ascii=False, indent=2))
+            v2_text.setPlainText(json.dumps(self._versions[-1].get("script", {}), ensure_ascii=False, indent=2))
+        dlg.exec()
 
     def _estimate_tts_durations(self):
         if not self._script:
