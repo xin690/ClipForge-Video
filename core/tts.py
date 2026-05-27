@@ -1,13 +1,71 @@
 import asyncio
 import hashlib
+import json
+import re
+import time
 import os
 from pathlib import Path
+from functools import lru_cache
 from typing import Optional
 
 
 import logging
 
 _log = logging.getLogger("tts")
+
+
+_DURATION_CACHE_DIR = Path("./cache/tts_duration")
+
+
+@lru_cache(maxsize=256)
+def preview_duration(text: str, voice: str = "zh-CN-XiaoxiaoNeural", speed: float = 1.0) -> float:
+    """估算 TTS 配音时长（秒），零文件 IO。
+    
+    使用 edge-tts 7.2.8 stream_sync() 从流式元数据获取时长。
+    TTSChunk.offset/duration 单位 = 100ns ticks (TICKS_PER_SECOND = 10_000_000)。
+    
+    Returns:
+        时长（秒），edge-tts 失败时 fallback 到字符估算。
+    """
+    _DURATION_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.md5(f"{text}|{voice}|{speed}".encode()).hexdigest()
+    cache_path = _DURATION_CACHE_DIR / f"{cache_key}.json"
+
+    if cache_path.exists():
+        try:
+            entry = json.loads(cache_path.read_text(encoding="utf-8"))
+            if time.time() - entry["ts"] < 604800:
+                return entry["duration"]
+        except Exception:
+            pass
+
+    duration = 0.0
+    try:
+        from edge_tts import Communicate
+        last_offset = last_duration = 0
+        rate_pct = f"{int((speed - 1.0) * 100):+d}%"
+        for chunk in Communicate(text, voice, rate=rate_pct, boundary="WordBoundary").stream_sync():
+            if chunk["type"] in ("WordBoundary", "SentenceBoundary"):
+                last_offset = chunk["offset"]
+                last_duration = chunk["duration"]
+        if last_duration:
+            duration = (last_offset + last_duration) / 10_000_000
+    except Exception as e:
+        _log.warning("edge-tts 流式获取时长失败: %s", e)
+
+    if duration <= 0:
+        cn = len(re.findall(r'[\u4e00-\u9fff]', text))
+        en = len(re.findall(r'[a-zA-Z]', text))
+        duration = (cn * 0.3 + en * 0.15) / speed
+
+    duration = max(duration, 1.0)
+
+    try:
+        cache_path.write_text(json.dumps({"ts": time.time(), "duration": duration}, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+    return duration
 
 
 class TTSModule:

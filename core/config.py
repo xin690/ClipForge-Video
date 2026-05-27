@@ -84,10 +84,22 @@ def _default_config() -> dict[str, Any]:
             "position": "bottom",
             "animation": "none",
         },
-        "ai": {"enabled": False, "provider": "openai", "api_key": "", "model": "gpt-4o-mini", "max_tokens": 500},
+        "ai": {
+            "enabled": False, "provider": "openai", "api_key": "",
+            "model": "gpt-4o-mini", "max_tokens": 500,
+            "max_versions": 2, "critique_enabled": True,
+            "token_guard": {
+                "max_per_session": 4000,
+                "warning_at": 0.7,
+                "cache_ttl_critique": 3600,
+                "cache_ttl_plan": 604800,
+                "debounce_seconds": 3.0,
+            },
+        },
         "downloader": {"provider": "pexels", "api_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
         "bgm": {"volume": 0.3},
         "logging": {"level": "INFO"},
+        "qa": {"preset": "tiktok", "auto_checks": True},
     }
 
 

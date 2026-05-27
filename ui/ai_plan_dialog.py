@@ -1,4 +1,5 @@
 import json
+import time
 import logging
 from pathlib import Path
 
@@ -9,12 +10,13 @@ from PyQt6.QtWidgets import (
     QSplitter, QWidget,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor, QBrush
 
 from core.config import get_config, get, save_config
 from core.models import Script, Segment
-from core.ai_planner import AIPlanner
+from core.ai_planner import AIPlanner, TokenBudget, CachedPlanner
 from core.downloader import Downloader
+from core.tts import preview_duration
 
 _log = logging.getLogger("ui.ai_plan")
 
@@ -32,6 +34,24 @@ class PlanWorker(QThread):
     def run(self):
         try:
             result = self.planner.plan_from_theme(self.theme, self.style)
+            self.finished_signal.emit(result)
+        except Exception as e:
+            self.error_signal.emit(str(e))
+
+
+class V2PlanWorker(QThread):
+    finished_signal = pyqtSignal(object)
+    error_signal = pyqtSignal(str)
+
+    def __init__(self, planner: AIPlanner, theme: str, style: str):
+        super().__init__()
+        self.planner = planner
+        self.theme = theme
+        self.style = style
+
+    def run(self):
+        try:
+            result = self.planner.plan_from_theme_v2(self.theme, self.style)
             self.finished_signal.emit(result)
         except Exception as e:
             self.error_signal.emit(str(e))
@@ -72,8 +92,13 @@ class AIPlanDialog(QDialog):
         self._plan_result: dict | None = None
         self._script: Script | None = None
         self._search_queries: list[dict] = []
-        self._plan_worker: PlanWorker | None = None
+        self._versions: list[dict] = []
+        self._tts_durations: list[float] = []
+        self._budget: TokenBudget | None = None
+        self._plan_worker: QThread | None = None
         self._download_worker: DownloadWorker | None = None
+        self._last_plan_click: float = 0
+        self._editing = False
 
         self._setup_ui()
 
@@ -141,15 +166,49 @@ class AIPlanDialog(QDialog):
         self.preview_title.setStyleSheet("color: #a6adc8; font-size: 13px;")
         preview_layout.addWidget(self.preview_title)
 
-        self.seg_table = QTableWidget(0, 5)
-        self.seg_table.setHorizontalHeaderLabels(["ID", "文案", "关键词", "情绪", "时长(s)"])
+        # 版本选择 + 操作按钮
+        toolbar = QHBoxLayout()
+        self.version_combo = QComboBox()
+        self.version_combo.setMinimumWidth(120)
+        self.version_combo.currentIndexChanged.connect(self._on_version_changed)
+        self.version_combo.setVisible(False)
+        toolbar.addWidget(QLabel("版本:"))
+        toolbar.addWidget(self.version_combo)
+
+        self.refine_btn = QPushButton("润色该段")
+        self.refine_btn.setEnabled(False)
+        self.refine_btn.clicked.connect(self._on_refine_segment)
+        toolbar.addWidget(self.refine_btn)
+
+        self.replan_btn = QPushButton("重新规划")
+        self.replan_btn.setEnabled(False)
+        self.replan_btn.clicked.connect(self._on_replan)
+        toolbar.addWidget(self.replan_btn)
+
+        toolbar.addStretch()
+        preview_layout.addLayout(toolbar)
+
+        self.seg_table = QTableWidget(0, 7)
+        self.seg_table.setHorizontalHeaderLabels(["ID", "文案", "关键词", "情绪", "原始时长", "配音时长", "差异"])
         self.seg_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.seg_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.seg_table.setMinimumHeight(200)
-        self.seg_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.seg_table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
+        self.seg_table.cellChanged.connect(self._on_cell_changed)
         preview_layout.addWidget(self.seg_table)
 
         layout.addWidget(self.preview_group)
+
+        # Token 预算进度条
+        token_row = QHBoxLayout()
+        self.token_progress = QProgressBar()
+        self.token_progress.setRange(0, 100)
+        self.token_progress.setValue(0)
+        self.token_progress.setFixedHeight(14)
+        self.token_progress.setFormat("Token: 0")
+        self.token_progress.setVisible(False)
+        token_row.addWidget(self.token_progress, 1)
+        layout.addLayout(token_row)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
@@ -186,6 +245,13 @@ class AIPlanDialog(QDialog):
         self._style_desc_label.setText(self.style_label_map.get(text, ""))
 
     def _on_plan(self):
+        # L5: 防抖
+        now = time.time()
+        if now - self._last_plan_click < 3.0:
+            self.status_label.setText("操作过于频繁，请稍候...")
+            return
+        self._last_plan_click = now
+
         theme = self.theme_edit.toPlainText().strip()
         if not theme:
             QMessageBox.warning(self, "输入为空", "请输入视频主题文案。")
@@ -209,6 +275,14 @@ class AIPlanDialog(QDialog):
         self._plan_result = None
         self._script = None
         self._search_queries = []
+        self._versions = []
+        self._tts_durations = []
+        self._budget = TokenBudget(
+            max_tokens=ai_cfg.get("token_guard", {}).get("max_per_session", 4000),
+            warning_pct=ai_cfg.get("token_guard", {}).get("warning_at", 0.7),
+        )
+        self.token_progress.setVisible(True)
+        self._update_token_ui()
 
         self.plan_btn.setEnabled(False)
         self.plan_btn.setText("规划中...")
@@ -217,9 +291,13 @@ class AIPlanDialog(QDialog):
         self.status_label.setText("正在调用 AI 规划视频内容...")
         self.download_btn.setEnabled(False)
         self.save_btn.setEnabled(False)
+        self.refine_btn.setEnabled(False)
+        self.replan_btn.setEnabled(False)
+        self.version_combo.setVisible(False)
 
-        self._plan_worker = PlanWorker(
-            AIPlanner(config), theme, self.style_combo.currentText()
+        planner = AIPlanner(config, budget=self._budget)
+        self._plan_worker = V2PlanWorker(
+            planner, theme, self.style_combo.currentText()
         )
         self._plan_worker.finished_signal.connect(self._on_plan_finished)
         self._plan_worker.error_signal.connect(self._on_plan_error)
@@ -232,6 +310,7 @@ class AIPlanDialog(QDialog):
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)
+        self._update_token_ui()
 
         if result is None:
             self.status_label.setText("AI 规划失败，请检查 API 配置或网络连接。")
@@ -241,13 +320,25 @@ class AIPlanDialog(QDialog):
         self._plan_result = result
         self._script = result.get("script")
         self._search_queries = result.get("search_queries", [])
+        self._versions = result.get("versions", [])
 
         if self._script:
+            # 估算 TTS 时长
+            self._estimate_tts_durations()
+
             self._display_script(self._script)
+            self._update_version_selector()
+
             q_count = len(self._search_queries)
-            self.status_label.setText(f"规划成功！共 {len(self._script.segments)} 个分段，{q_count} 个搜索关键词。")
+            status = f"规划成功！共 {len(self._script.segments)} 个分段，{q_count} 个搜索关键词。"
+            warn = self._budget.warning() if self._budget else None
+            if warn:
+                status += f" ⚠️ {warn}"
+            self.status_label.setText(status)
             self.download_btn.setEnabled(q_count > 0)
             self.save_btn.setEnabled(True)
+            self.refine_btn.setEnabled(True)
+            self.replan_btn.setEnabled(True)
         else:
             self.status_label.setText("规划失败：未生成有效脚本。")
             self.progress_bar.setValue(0)
@@ -256,10 +347,12 @@ class AIPlanDialog(QDialog):
         self.plan_btn.setEnabled(True)
         self.plan_btn.setText("AI 规划")
         self.progress_bar.setVisible(False)
+        self.token_progress.setVisible(False)
         self.status_label.setText(f"规划出错: {error_msg}")
         QMessageBox.critical(self, "错误", f"AI 规划失败:\n{error_msg}")
 
     def _display_script(self, script: Script):
+        self._editing = True
         self.preview_title.setText(f"脚本标题: {script.title}  |  风格: {script.style}  |  总时长: {script.duration}s")
         self.preview_title.setStyleSheet("color: #cdd6f4; font-size: 13px; font-weight: bold;")
 
@@ -270,7 +363,157 @@ class AIPlanDialog(QDialog):
             self.seg_table.setItem(i, 1, QTableWidgetItem(seg.text))
             self.seg_table.setItem(i, 2, QTableWidgetItem(", ".join(seg.keywords)))
             self.seg_table.setItem(i, 3, QTableWidgetItem(seg.emotion))
+            # 原始时长
             self.seg_table.setItem(i, 4, QTableWidgetItem(str(seg.duration)))
+            # 配音时长
+            if i < len(self._tts_durations):
+                tts_dur = self._tts_durations[i]
+                item_tts = QTableWidgetItem(f"{tts_dur:.1f}s")
+                diff = tts_dur - seg.duration
+                if abs(diff) > 1.0:
+                    color = QColor("#ff4444") if diff > 0 else QColor("#44ff44")
+                    item_tts.setForeground(QBrush(color))
+                self.seg_table.setItem(i, 5, item_tts)
+                diff_item = QTableWidgetItem(f"{diff:+.1f}s")
+                if abs(diff) > 1.0:
+                    diff_item.setForeground(QBrush(QColor("#ff4444") if diff > 0 else QColor("#44ff44")))
+                self.seg_table.setItem(i, 6, diff_item)
+            else:
+                self.seg_table.setItem(i, 5, QTableWidgetItem("-"))
+                self.seg_table.setItem(i, 6, QTableWidgetItem("-"))
+        self._editing = False
+
+    def _on_cell_changed(self, row: int, col: int):
+        if self._editing or not self._script:
+            return
+        segs = self._script.segments
+        if row >= len(segs):
+            return
+        seg = segs[row]
+        item = self.seg_table.item(row, col)
+        if not item:
+            return
+        new_val = item.text().strip()
+        if col == 1:
+            seg.text = new_val
+        elif col == 2:
+            seg.keywords = [k.strip() for k in new_val.split(",") if k.strip()]
+        elif col == 3:
+            if new_val in ("normal", "strong", "happy", "sad", "calm"):
+                seg.emotion = new_val
+        elif col == 4:
+            try:
+                seg.duration = max(2, min(15, int(float(new_val))))
+            except ValueError:
+                pass
+        self._editing = True
+        item.setText(str(seg.duration) if col == 4 else item.text())
+        self._editing = False
+
+    def _update_version_selector(self):
+        if len(self._versions) > 1:
+            self.version_combo.setVisible(True)
+            self.version_combo.blockSignals(True)
+            self.version_combo.clear()
+            for idx, v in enumerate(self._versions):
+                label = f"v{idx + 1}"
+                c = v.get("critiques", [])
+                if c:
+                    label += f" ({len(c)}问题)"
+                self.version_combo.addItem(label)
+            self.version_combo.setCurrentIndex(len(self._versions) - 1)
+            self.version_combo.blockSignals(False)
+
+    def _on_version_changed(self, idx: int):
+        if not self._versions or idx < 0 or idx >= len(self._versions):
+            return
+        v = self._versions[idx]
+        script_dict = v.get("script", {})
+        if not script_dict:
+            return
+        segs = script_dict.get("segments", [])
+        self._editing = True
+        self.seg_table.setRowCount(len(segs))
+        for i, seg in enumerate(segs):
+            self.seg_table.setItem(i, 0, QTableWidgetItem(str(seg.get("id", i + 1))))
+            self.seg_table.setItem(i, 1, QTableWidgetItem(str(seg.get("text", ""))))
+            self.seg_table.setItem(i, 2, QTableWidgetItem(", ".join(seg.get("keywords", []))))
+            self.seg_table.setItem(i, 3, QTableWidgetItem(seg.get("emotion", "normal")))
+            self.seg_table.setItem(i, 4, QTableWidgetItem(str(seg.get("duration", 5))))
+            self.seg_table.setItem(i, 5, QTableWidgetItem("-"))
+            self.seg_table.setItem(i, 6, QTableWidgetItem("-"))
+        self._editing = False
+        critiques = v.get("critiques", [])
+        if critiques:
+            self.status_label.setText(f"版本 {idx + 1} 评审意见: {'; '.join(critiques[:2])}")
+        else:
+            self.status_label.setText(f"版本 {idx + 1}（无问题）")
+
+    def _estimate_tts_durations(self):
+        if not self._script:
+            return
+        self._tts_durations = []
+        voice = self._script.voice or "zh-CN-XiaoxiaoNeural"
+        for seg in self._script.segments:
+            try:
+                d = preview_duration(seg.text, voice)
+                self._tts_durations.append(d)
+            except Exception:
+                self._tts_durations.append(float(seg.duration))
+
+    def _update_token_ui(self):
+        if not self._budget:
+            self.token_progress.setVisible(False)
+            return
+        pct = int(self._budget.percent * 100)
+        self.token_progress.setValue(pct)
+        self.token_progress.setFormat(f"Token: {self._budget.used}/{self._budget.max_tokens}")
+        if pct > 70:
+            self.token_progress.setStyleSheet("QProgressBar::chunk { background-color: #f9e2af; }")
+        elif pct > 90:
+            self.token_progress.setStyleSheet("QProgressBar::chunk { background-color: #f38ba8; }")
+        else:
+            self.token_progress.setStyleSheet("")
+
+    def _on_refine_segment(self):
+        row = self.seg_table.currentRow()
+        if row < 0 or not self._script:
+            QMessageBox.information(self, "提示", "请先选中要润色的段落。")
+            return
+        seg = self._script.segments[row]
+        if len(seg.text) < 5 or len(seg.text) > 200:
+            QMessageBox.information(self, "提示", "文案长度需 5~200 字才可润色。")
+            return
+
+        config = get_config()
+        planner = AIPlanner(config, budget=self._budget)
+        if not planner.enabled:
+            QMessageBox.warning(self, "AI 未启用", "请先启用 AI 功能。")
+            return
+
+        self.status_label.setText(f"正在润色段{seg.id}...")
+        new_text = planner._api_optimize(seg.text)
+        if new_text and new_text != seg.text:
+            seg.text = new_text
+            self._editing = True
+            self.seg_table.setItem(row, 1, QTableWidgetItem(new_text))
+            self._editing = False
+            self._update_token_ui()
+            self.status_label.setText(f"段{seg.id} 文案已润色。")
+        else:
+            self.status_label.setText("润色未产生变化。")
+
+    def _on_replan(self):
+        reply = QMessageBox.question(
+            self, "重新规划",
+            "将丢弃当前结果并重新规划。是否继续？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.No:
+            return
+        CachedPlanner.invalidate_all()
+        self._budget = None
+        self._on_plan()
 
     def _on_download(self):
         if not self._search_queries:
@@ -320,6 +563,8 @@ class AIPlanDialog(QDialog):
         self.download_btn.setEnabled(True)
         self.save_btn.setEnabled(True)
         self.plan_btn.setEnabled(True)
+        self.refine_btn.setEnabled(bool(self._script))
+        self.replan_btn.setEnabled(bool(self._script))
         self.progress_bar.setValue(100)
         self.status_label.setText(f"素材下载完成！成功 {len(results)} 个文件。请打开软件扫描素材后即可生成视频。")
 
@@ -327,6 +572,8 @@ class AIPlanDialog(QDialog):
         self.download_btn.setEnabled(True)
         self.save_btn.setEnabled(True)
         self.plan_btn.setEnabled(True)
+        self.refine_btn.setEnabled(bool(self._script))
+        self.replan_btn.setEnabled(bool(self._script))
         self.progress_bar.setVisible(False)
         self.status_label.setText(f"下载出错: {error_msg}")
         QMessageBox.critical(self, "下载错误", f"素材下载失败:\n{error_msg}")
@@ -362,7 +609,7 @@ class AIPlanDialog(QDialog):
         QMessageBox.information(self, "保存成功", f"脚本已保存到:\n{save_path}")
 
     def _worker_cleanup(self):
-        if self._plan_worker:
+        if self._plan_worker and isinstance(self._plan_worker, QThread):
             if self._plan_worker.isRunning():
                 self._plan_worker.quit()
                 self._plan_worker.wait(3000)
