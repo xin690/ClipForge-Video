@@ -86,8 +86,8 @@ class AIPlanDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("AI 视频规划")
-        self.resize(900, 700)
-        self.setMinimumSize(800, 600)
+        self.resize(900, 780)
+        self.setMinimumSize(800, 680)
 
         self._plan_result: dict | None = None
         self._script: Script | None = None
@@ -239,8 +239,12 @@ class AIPlanDialog(QDialog):
         self.seg_table.setHorizontalHeaderLabels(["ID", "文案", "关键词", "情绪", "原始时长", "配音时长", "差异"])
         self.seg_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.seg_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self.seg_table.setMinimumHeight(200)
         self.seg_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.seg_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.seg_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.seg_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.seg_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.seg_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
         self.seg_table.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
         self.seg_table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
         self.seg_table.cellChanged.connect(self._on_cell_changed)
