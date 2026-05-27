@@ -39,6 +39,7 @@ class TimelineItem(BaseModel):
     transition: str = "cut"
     subtitle: str = ""
     subtitle_style: str = "normal"
+    subtitle_animation: str = "none"
     camera: str = "static"
     voice_file: Optional[str] = None
     bgm_file: Optional[str] = None

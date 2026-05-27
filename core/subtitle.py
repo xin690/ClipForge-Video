@@ -3,6 +3,15 @@ from pathlib import Path
 from typing import Optional
 
 
+ANIMATION_TAGS: dict[str, str] = {
+    "pulse":  "{\\t(0,300,\\fs44\\fs52)}",
+    "swing":  "{\\t(0,400,\\frz-5\\frz5)}",
+    "fadein": "{\\t(0,500,\\alpha&HFF&\\alpha&H00&)}",
+    "scale":  "{\\t(0,600,\\fscx105\\fscy105)}",
+    "typing": "{\\t(0,800,\\fscx0\\fscx100)}",
+}
+
+
 class SubtitleGenerator:
     def __init__(self, config: dict):
         self.mode = config.get("subtitle", {}).get("engine", "text")
@@ -90,26 +99,46 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
         events = []
         for seg in segments:
-            if len(seg) == 4:
+            if len(seg) >= 5:
+                start, end, text, seg_style, animation = seg[:5]
+            elif len(seg) == 4:
                 start, end, text, seg_style = seg
+                animation = "none"
             else:
                 start, end, text = seg
                 seg_style = "Default"
+                animation = "none"
             clean_text = text.strip().replace("\n", "\\N")
+            anim_tag = ANIMATION_TAGS.get(animation, "")
+            if anim_tag:
+                clean_text = anim_tag + clean_text
             events.append(
                 f"Dialogue: 0,{self._time_str_ass(start)},{self._time_str_ass(end)},{seg_style},,0,0,0,,{clean_text}"
             )
 
         return header + "\n".join(events)
 
+    ALL_ASS_STYLES: dict[str, str] = {
+    "Default":       "Microsoft YaHei,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "normal":        "Microsoft YaHei,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "big_yellow":    "Microsoft YaHei,48,&H0000FFD7,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "soft_white":    "Microsoft YaHei,36,&H00E0E0E0,&H000000FF,&H00000000,&H60000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "bold":          "Microsoft YaHei,42,&H006B6BFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "strong":        "Microsoft YaHei,48,&H0000FFD7,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "happy":         "Microsoft YaHei,42,&H006B6BFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "sad":           "Microsoft YaHei,36,&H00E0E0E0,&H000000FF,&H00000000,&H60000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
+    "calm":          "Noto Sans SC,36,&H00C0C0C0,&H000000FF,&H00000000,&H40000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1",
+    "knowledge":     "Microsoft YaHei,38,&H00FFFFFF,&H000000FF,&H004466AA,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,30,10,1",
+    "news":          "Microsoft YaHei,42,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,2,2,20,20,20,1",
+    "entertainment": "Noto Sans SC,46,&H0000FFD7,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,2,1,8,10,10,10,1",
+    "commerce":      "Microsoft YaHei,44,&H0000FFD7,&H000000FF,&H00222222,&H80000000,-1,0,0,0,100,100,0,0,1,2,3,2,10,10,10,1",
+    "scifi":         "Consolas,40,&H00CCFF00,&H000000FF,&H00448800,&H80000000,-1,0,0,0,100,100,3,0,1,2,1,2,10,10,10,1",
+    "tech":          "Consolas,38,&H00FFFFFF,&H000000FF,&H0033AA33,&HAA000000,0,0,0,0,100,100,0,0,3,0,0,2,10,10,10,1",
+    "keyword":       "Microsoft YaHei,28,&H00888888,&H000000FF,&H00000000,&H60000000,0,0,0,0,100,100,0,0,1,1,0,8,10,10,10,1",
+}
+
     def _get_all_ass_styles(self) -> dict[str, str]:
-        return {
-            "Default":     "Microsoft YaHei,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
-            "normal":      "Microsoft YaHei,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
-            "big_yellow":  "Microsoft YaHei,48,&H0000FFD7,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
-            "soft_white":  "Microsoft YaHei,36,&H00E0E0E0,&H000000FF,&H00000000,&H60000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
-            "bold":        "Microsoft YaHei,42,&H006B6BFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
-        }
+        return dict(self.ALL_ASS_STYLES)
 
     def _get_ass_style(self, style: str) -> str:
         styles = {

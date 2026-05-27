@@ -54,6 +54,7 @@ class TimelineBuilder:
             sub_style_name = sub_style.get("style", "normal")
         else:
             sub_style_name = str(sub_style)
+        sub_animation = rule_result.get("subtitle_animation", "none")
 
         return TimelineItem(
             start=start_time,
@@ -63,6 +64,7 @@ class TimelineBuilder:
             transition=rule_result.get("transition", "cut"),
             subtitle=seg.text,
             subtitle_style=sub_style_name,
+            subtitle_animation=sub_animation,
             camera=rule_result.get("camera", "static"),
         )
 

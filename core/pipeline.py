@@ -192,7 +192,7 @@ class Pipeline:
 
             self._report(progress_callback, PipelineStep.GENERATE_SUBTITLE, 0.0, "生成字幕...")
             subtitle_path = os.path.join(os.path.dirname(output_path), "_temp_subtitle.ass")
-            subtitle_segments = [(item.start, item.end, item.subtitle, item.subtitle_style)
+            subtitle_segments = [(item.start, item.end, item.subtitle, item.subtitle_style, item.subtitle_animation)
                                   for item in timeline.timeline if item.subtitle]
             subtitle_gen.generate_from_text(subtitle_segments, subtitle_path)
             self.logger.info(f"字幕生成完成: {subtitle_path}")

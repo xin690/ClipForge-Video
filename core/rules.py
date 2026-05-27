@@ -39,16 +39,30 @@ class SubtitleStyleRule(Rule):
     name = "subtitle_style"
     priority = 10
 
+    EMOTION_MAP: dict[str, dict] = {
+        "strong":  {"style": "big_yellow", "animation": "pulse",  "font_size": 48, "color": "#FFD700", "bold": True},
+        "sad":     {"style": "soft_white", "animation": "fadein", "font_size": 36, "color": "#FFFFFF", "bold": False},
+        "happy":   {"style": "bold",       "animation": "swing",  "font_size": 42, "color": "#FF6B6B", "bold": True},
+        "calm":    {"style": "calm",       "animation": "scale",  "font_size": 36, "color": "#E0E0E0", "bold": False},
+        "normal":  {"style": "normal",     "animation": "none",   "font_size": 36, "color": "#FFFFFF", "bold": False},
+    }
+
+    STYLE_FORCE: dict[str, str] = {
+        "scifi": "scifi",
+        "tech":  "tech",
+    }
+
     def apply(self, ctx: dict) -> dict:
         emotion = ctx.get("emotion", "normal")
-        style_map = {
-            "strong":  {"style": "big_yellow", "font_size": 48, "color": "#FFD700", "bold": True},
-            "sad":     {"style": "soft_white", "font_size": 36, "color": "#FFFFFF", "bold": False},
-            "happy":   {"style": "bold",       "font_size": 42, "color": "#FF6B6B", "bold": True},
-            "calm":    {"style": "soft_white", "font_size": 36, "color": "#E0E0E0", "bold": False},
-            "normal":  {"style": "normal",     "font_size": 36, "color": "#FFFFFF", "bold": False},
-        }
-        return {"subtitle": style_map.get(emotion, style_map["normal"])}
+        result = dict(self.EMOTION_MAP.get(emotion, self.EMOTION_MAP["normal"]))
+
+        style = ctx.get("style")
+        force = self.STYLE_FORCE.get(style) if style else None
+        if force:
+            result["style"] = force
+            result["animation"] = "typing" if style == "scifi" else "none"
+
+        return {"subtitle": result, "subtitle_animation": result["animation"]}
 
 
 class TransitionRule(Rule):
