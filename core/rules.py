@@ -62,6 +62,14 @@ class SubtitleStyleRule(Rule):
             result["style"] = force
             result["animation"] = "typing" if style == "scifi" else "none"
 
+        from core.config import get_config
+        sub_cfg = get_config().get("subtitle", {})
+        if sub_cfg.get("font_family"):
+            result["style"] = "custom"
+            cfg_anim = sub_cfg.get("animation", "none")
+            if cfg_anim in ("none", "pulse", "swing", "fadein", "scale", "typing"):
+                result["animation"] = cfg_anim
+
         return {"subtitle": result, "subtitle_animation": result["animation"]}
 
 

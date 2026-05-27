@@ -11,9 +11,36 @@ ANIMATION_TAGS: dict[str, str] = {
     "typing": "{\\t(0,800,\\fscx0\\fscx100)}",
 }
 
+POSITION_ALIGN: dict[str, int] = {
+    "bottom": 2,
+    "top": 8,
+    "center": 5,
+}
+
+
+def _html_color_to_ass(html: str) -> str:
+    """Convert #RRGGBB to &H00BBGGRR (ASS color format)."""
+    h = html.lstrip("#")
+    if len(h) != 6:
+        return "&H00FFFFFF"
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    return f"&H00{b}{g}{r}"
+
+
+def _build_style_string(font: str, size: int, color: str, bold: bool = False,
+                        outline: int = 2, shadow: int = 1,
+                        position: str = "bottom") -> str:
+    primary = _html_color_to_ass(color)
+    align = POSITION_ALIGN.get(position, 2)
+    b = "-1" if bold else "0"
+    return (f"{font},{size},{primary},&H000000FF,&H00000000,"
+            f"&H80000000,{b},0,0,0,100,100,0,0,1,{outline},{shadow},"
+            f"{align},10,10,10,1")
+
 
 class SubtitleGenerator:
     def __init__(self, config: dict):
+        self._config = config
         self.mode = config.get("subtitle", {}).get("engine", "text")
         self.whisper_model = config.get("subtitle", {}).get("whisper_model", "tiny")
         self.device = config.get("subtitle", {}).get("device", "cpu")
@@ -138,7 +165,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 }
 
     def _get_all_ass_styles(self) -> dict[str, str]:
-        return dict(self.ALL_ASS_STYLES)
+        styles = dict(self.ALL_ASS_STYLES)
+        sub_cfg = getattr(self, '_config', {}).get("subtitle", {})
+        if sub_cfg.get("font_family"):
+            styles["custom"] = _build_style_string(
+                font=sub_cfg.get("font_family", "Microsoft YaHei"),
+                size=sub_cfg.get("font_size", 36),
+                color=sub_cfg.get("font_color", "#FFFFFF"),
+                bold=sub_cfg.get("bold", False),
+                outline=sub_cfg.get("outline", 2),
+                shadow=sub_cfg.get("shadow", 1),
+                position=sub_cfg.get("position", "bottom"),
+            )
+        return styles
 
     def _get_ass_style(self, style: str) -> str:
         styles = {
