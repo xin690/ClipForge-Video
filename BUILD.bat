@@ -38,7 +38,7 @@ echo [4/5] Build executable...
 
 :: 5. Copy additional files
 echo [5/5] Copy resources...
-:: WARNING: config.yaml is copied as-is â€” ensure no secrets before building
+:: WARNING: config.yaml is copied as-is â€?ensure no secrets before building
 if exist "dist\ClipForge.exe" (
     if not exist "dist\config.yaml" copy config.yaml dist\config.yaml >nul
     if not exist "dist\config.template.yaml" copy config.template.yaml dist\config.template.yaml >nul
