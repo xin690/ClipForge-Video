@@ -594,3 +594,28 @@ class AIPlanner:
             return response.json()["choices"][0]["message"]["content"].strip()
         except Exception:
             return text
+
+    def _score_emotion_match(self, text: str, assets: list[list[Asset]]) -> list[float]:
+        scores = []
+        try:
+            import httpx
+            system_prompt = "你是情绪分析专家。判断每段文案与对应素材的情绪匹配度(0-100)，只返回空格分隔的数字列表。"
+            lines = []
+            for i, seg_assets in enumerate(assets):
+                tags_str = "; ".join(", ".join(a.tags) for a in seg_assets[:3])
+                lines.append(f"段{i}: 文案=\"{text[i] if isinstance(text, list) else text}\" 素材标签=\"{tags_str}\"")
+            user_prompt = "\n".join(lines)
+            response = httpx.post(
+                self._api_url(),
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "max_tokens": 200},
+                timeout=30,
+            )
+            data = response.json()
+            nums = re.findall(r"\d+", data["choices"][0]["message"]["content"])
+            scores = [float(n) / 100.0 for n in nums[:len(assets)]]
+        except Exception:
+            pass
+        while len(scores) < len(assets):
+            scores.append(0.5)
+        return scores[:len(assets)]

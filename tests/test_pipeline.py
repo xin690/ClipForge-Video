@@ -125,6 +125,7 @@ class TestPipelineSteps:
             PipelineStep.GENERATE_TTS,
             PipelineStep.GENERATE_SUBTITLE,
             PipelineStep.RENDER_VIDEO,
+            PipelineStep.PREVIEW,
             PipelineStep.DONE,
         ]
         assert steps == expected

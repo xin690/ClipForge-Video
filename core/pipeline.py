@@ -30,6 +30,7 @@ class PipelineStep(Enum):
     GENERATE_TTS = "generate_tts"
     GENERATE_SUBTITLE = "generate_subtitle"
     RENDER_VIDEO = "render_video"
+    PREVIEW = "preview"
     DONE = "done"
 
 

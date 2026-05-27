@@ -3,20 +3,35 @@ import time
 import logging
 from pathlib import Path
 
+import os
+import threading
+
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit,
     QLabel, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView,
     QMessageBox, QProgressBar, QGroupBox, QFormLayout, QLineEdit,
-    QSplitter, QWidget,
+    QSplitter, QWidget, QTabWidget, QScrollArea, QGridLayout,
+    QFrame, QTextEdit, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QBrush
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
+from PyQt6.QtGui import QFont, QColor, QBrush, QPixmap
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimediaWidgets import QVideoWidget
 
 from core.config import get_config, get, save_config
-from core.models import Script, Segment
+from core.models import Script, Segment, Feedback
+from core.matcher import Matcher
+from core.database import Database
+from core.rules import RuleEngine
+from core.timeline import TimelineBuilder
 from core.ai_planner import AIPlanner, TokenBudget, CachedPlanner
 from core.downloader import Downloader
 from core.tts import preview_duration
+from core.renderer import Renderer
+
+
+_THUMB_CACHE_DIR = Path("./cache/thumbnails")
+FEEDBACK_OPTIONS = ["satisfied", "dissatisfied: mismatch", "dissatisfied: transition", "dissatisfied: subtitle", "dissatisfied: duration", "dissatisfied: other"]
 
 _log = logging.getLogger("ui.ai_plan")
 
@@ -99,6 +114,7 @@ class AIPlanDialog(QDialog):
         self._download_worker: DownloadWorker | None = None
         self._last_plan_click: float = 0
         self._editing = False
+        self._asset_selections: dict[int, str] = {}
 
         self._setup_ui()
 
@@ -157,47 +173,12 @@ class AIPlanDialog(QDialog):
 
         layout.addLayout(btn_layout)
 
-        self.preview_group = QGroupBox("规划结果预览")
-        preview_layout = QVBoxLayout(self.preview_group)
-        preview_layout.setContentsMargins(12, 16, 12, 12)
-        preview_layout.setSpacing(8)
-
-        self.preview_title = QLabel("点击「AI 规划」开始")
-        self.preview_title.setStyleSheet("color: #a6adc8; font-size: 13px;")
-        preview_layout.addWidget(self.preview_title)
-
-        # 版本选择 + 操作按钮
-        toolbar = QHBoxLayout()
-        self.version_combo = QComboBox()
-        self.version_combo.setMinimumWidth(120)
-        self.version_combo.currentIndexChanged.connect(self._on_version_changed)
-        self.version_combo.setVisible(False)
-        toolbar.addWidget(QLabel("版本:"))
-        toolbar.addWidget(self.version_combo)
-
-        self.refine_btn = QPushButton("润色该段")
-        self.refine_btn.setEnabled(False)
-        self.refine_btn.clicked.connect(self._on_refine_segment)
-        toolbar.addWidget(self.refine_btn)
-
-        self.replan_btn = QPushButton("重新规划")
-        self.replan_btn.setEnabled(False)
-        self.replan_btn.clicked.connect(self._on_replan)
-        toolbar.addWidget(self.replan_btn)
-
-        toolbar.addStretch()
-        preview_layout.addLayout(toolbar)
-
-        self.seg_table = QTableWidget(0, 7)
-        self.seg_table.setHorizontalHeaderLabels(["ID", "文案", "关键词", "情绪", "原始时长", "配音时长", "差异"])
-        self.seg_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.seg_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self.seg_table.setMinimumHeight(200)
-        self.seg_table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
-        self.seg_table.cellChanged.connect(self._on_cell_changed)
-        preview_layout.addWidget(self.seg_table)
-
-        layout.addWidget(self.preview_group)
+        self.result_tabs = QTabWidget()
+        self.result_tabs.addTab(self._setup_script_tab(), "脚本编辑")
+        self.result_tabs.addTab(self._setup_asset_tab(), "素材配选")
+        self.result_tabs.addTab(self._setup_preview_tab(), "预览审核")
+        self.result_tabs.setVisible(False)
+        layout.addWidget(self.result_tabs, 1)
 
         # Token 预算进度条
         token_row = QHBoxLayout()
@@ -240,6 +221,137 @@ class AIPlanDialog(QDialog):
         bottom_layout.addWidget(self.close_btn)
 
         layout.addLayout(bottom_layout)
+
+    def _setup_script_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        self.preview_title = QLabel("点击「AI 规划」开始")
+        self.preview_title.setStyleSheet("color: #a6adc8; font-size: 13px;")
+        layout.addWidget(self.preview_title)
+
+        toolbar = QHBoxLayout()
+        self.version_combo = QComboBox()
+        self.version_combo.setMinimumWidth(120)
+        self.version_combo.currentIndexChanged.connect(self._on_version_changed)
+        self.version_combo.setVisible(False)
+        toolbar.addWidget(QLabel("版本:"))
+        toolbar.addWidget(self.version_combo)
+
+        self.refine_btn = QPushButton("润色该段")
+        self.refine_btn.setEnabled(False)
+        self.refine_btn.clicked.connect(self._on_refine_segment)
+        toolbar.addWidget(self.refine_btn)
+
+        self.replan_btn = QPushButton("重新规划")
+        self.replan_btn.setEnabled(False)
+        self.replan_btn.clicked.connect(self._on_replan)
+        toolbar.addWidget(self.replan_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        self.seg_table = QTableWidget(0, 7)
+        self.seg_table.setHorizontalHeaderLabels(["ID", "文案", "关键词", "情绪", "原始时长", "配音时长", "差异"])
+        self.seg_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.seg_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.seg_table.setMinimumHeight(200)
+        self.seg_table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
+        self.seg_table.cellChanged.connect(self._on_cell_changed)
+        layout.addWidget(self.seg_table, 1)
+
+        return tab
+
+    def _setup_asset_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        info = QLabel("为每个分段选择最佳素材。点击缩略图选择/取消，绿色边框表示已选中。")
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #a6adc8;")
+        layout.addWidget(info)
+
+        self.asset_scroll = QScrollArea()
+        self.asset_scroll.setWidgetResizable(True)
+        self.asset_scroll_content = QWidget()
+        self.asset_scroll_layout = QVBoxLayout(self.asset_scroll_content)
+        self.asset_scroll_layout.setSpacing(12)
+        self.asset_scroll.setWidget(self.asset_scroll_content)
+        layout.addWidget(self.asset_scroll, 1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self.asset_confirm_btn = QPushButton("确认素材选择")
+        self.asset_confirm_btn.setEnabled(False)
+        self.asset_confirm_btn.clicked.connect(self._on_asset_confirm)
+        btn_row.addWidget(self.asset_confirm_btn)
+        layout.addLayout(btn_row)
+
+        return tab
+
+    def _setup_preview_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        self.video_widget = QVideoWidget()
+        self.video_widget.setMinimumSize(320, 240)
+        self.video_widget.setStyleSheet("background-color: #181825;")
+        layout.addWidget(self.video_widget, 1)
+
+        play_row = QHBoxLayout()
+        self.preview_play_btn = QPushButton("▶")
+        self.preview_play_btn.setFixedWidth(40)
+        self.preview_play_btn.clicked.connect(self._toggle_preview_play)
+        play_row.addWidget(self.preview_play_btn)
+
+        self.preview_slider = QSlider(Qt.Orientation.Horizontal)
+        self.preview_slider.sliderMoved.connect(self._preview_seek)
+        play_row.addWidget(self.preview_slider, 1)
+
+        self.preview_time = QLabel("00:00 / 00:00")
+        self.preview_time.setStyleSheet("color: #a6adc8;")
+        play_row.addWidget(self.preview_time)
+
+        self.preview_player = QMediaPlayer()
+        self.preview_audio = QAudioOutput()
+        self.preview_player.setAudioOutput(self.preview_audio)
+        self.preview_player.setVideoOutput(self.video_widget)
+        self.preview_player.positionChanged.connect(self._on_preview_pos)
+        self.preview_player.durationChanged.connect(self._on_preview_dur)
+        self.preview_player.playbackStateChanged.connect(self._on_preview_state)
+
+        gen_btn = QPushButton("生成预览")
+        gen_btn.clicked.connect(self._on_generate_preview)
+        play_row.addWidget(gen_btn)
+
+        layout.addLayout(play_row)
+
+        feedback_group = QGroupBox("段落反馈")
+        fb_layout = QVBoxLayout(feedback_group)
+        fb_layout.setSpacing(4)
+
+        self.feedback_table = QTableWidget(0, 4)
+        self.feedback_table.setHorizontalHeaderLabels(["分段", "文案", "评分", "备注"])
+        self.feedback_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.feedback_table.setMinimumHeight(120)
+        fb_layout.addWidget(self.feedback_table)
+
+        fb_btn_row = QHBoxLayout()
+        fb_btn_row.addStretch()
+        submit_fb = QPushButton("提交反馈并重渲染")
+        submit_fb.clicked.connect(self._on_submit_feedback)
+        fb_btn_row.addWidget(submit_fb)
+        fb_layout.addLayout(fb_btn_row)
+
+        layout.addWidget(feedback_group)
+
+        return tab
 
     def _on_style_changed(self, text: str):
         self._style_desc_label.setText(self.style_label_map.get(text, ""))
@@ -294,6 +406,7 @@ class AIPlanDialog(QDialog):
         self.refine_btn.setEnabled(False)
         self.replan_btn.setEnabled(False)
         self.version_combo.setVisible(False)
+        self.result_tabs.setVisible(False)
 
         planner = AIPlanner(config, budget=self._budget)
         self._plan_worker = V2PlanWorker(
@@ -323,11 +436,11 @@ class AIPlanDialog(QDialog):
         self._versions = result.get("versions", [])
 
         if self._script:
-            # 估算 TTS 时长
             self._estimate_tts_durations()
-
             self._display_script(self._script)
             self._update_version_selector()
+            self._refresh_asset_grid()
+            self._refresh_feedback_table()
 
             q_count = len(self._search_queries)
             status = f"规划成功！共 {len(self._script.segments)} 个分段，{q_count} 个搜索关键词。"
@@ -335,6 +448,8 @@ class AIPlanDialog(QDialog):
             if warn:
                 status += f" ⚠️ {warn}"
             self.status_label.setText(status)
+            self.result_tabs.setVisible(True)
+            self.result_tabs.setCurrentIndex(0)
             self.download_btn.setEnabled(q_count > 0)
             self.save_btn.setEnabled(True)
             self.refine_btn.setEnabled(True)
@@ -350,6 +465,265 @@ class AIPlanDialog(QDialog):
         self.token_progress.setVisible(False)
         self.status_label.setText(f"规划出错: {error_msg}")
         QMessageBox.critical(self, "错误", f"AI 规划失败:\n{error_msg}")
+
+    # ── asset tab ────────────────────────────────────────────────
+
+    def _refresh_asset_grid(self):
+        if not self._script:
+            return
+        self._asset_selections: dict[int, int] = {}
+        segs = self._script.segments
+        config = get_config()
+        db = Database(get("paths.database", "./database/clipforge.db"))
+        db.init_tables()
+        matcher = Matcher(db)
+
+        for i in range(self.asset_scroll_layout.count() - 1, -1, -1):
+            w = self.asset_scroll_layout.itemAt(i).widget()
+            if w:
+                w.deleteLater()
+
+        for idx, seg in enumerate(segs):
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Shape.StyledPanel)
+            frame.setStyleSheet("QFrame { border: 1px solid #313244; border-radius: 6px; padding: 4px; }")
+            row_layout = QHBoxLayout(frame)
+            row_layout.setSpacing(6)
+
+            label = QLabel(f"段{seg.id}: {seg.text[:30]}...")
+            label.setFixedWidth(180)
+            label.setStyleSheet("color: #cdd6f4; font-size: 11px;")
+            row_layout.addWidget(label)
+
+            candidates = matcher.match(
+                text=seg.text, keywords=seg.keywords, top_k=5,
+                emotion=seg.emotion,
+            )
+            seg_btns: list[QPushButton] = []
+            for rank, (asset, score) in enumerate(candidates):
+                btn = QPushButton()
+                btn.setFixedSize(120, 68)
+                btn.setToolTip(f"{asset.file}\n匹配度: {score:.0f}\n标签: {', '.join(asset.tags[:5])}")
+                btn.setProperty("asset_file", asset.file)
+                btn.setProperty("asset_score", score)
+                btn.setProperty("asset_rank", rank)
+                btn.setProperty("segment_idx", idx)
+                btn.setStyleSheet(self._thumb_style(False))
+                thumb_path = self._get_thumbnail_path(asset.file)
+                if thumb_path:
+                    pix = QPixmap(str(thumb_path))
+                    if not pix.isNull():
+                        btn.setIconSize(pix.size())
+                        btn.setIcon(pix.scaled(116, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                if len(seg_btns) < rank:
+                    btn.setText(f"#{rank+1}")
+                btn.clicked.connect(lambda _, b=btn, i=idx: self._on_asset_click(b, i))
+                seg_btns.append(btn)
+                row_layout.addWidget(btn)
+
+            row_layout.addStretch()
+            self.asset_scroll_layout.addWidget(frame)
+
+        self.asset_confirm_btn.setEnabled(True)
+        db.close()
+
+    def _on_asset_click(self, btn: QPushButton, seg_idx: int):
+        if not hasattr(self, '_asset_selections'):
+            self._asset_selections = {}
+        selected_file = btn.property("asset_file")
+        if self._asset_selections.get(seg_idx) == selected_file:
+            del self._asset_selections[seg_idx]
+            btn.setStyleSheet(self._thumb_style(False))
+        else:
+            self._asset_selections[seg_idx] = selected_file
+            self._refresh_asset_selection_ui(seg_idx, btn)
+
+    def _refresh_asset_selection_ui(self, seg_idx: int, selected_btn: QPushButton):
+        frame = self.asset_scroll_layout.itemAt(seg_idx).widget()
+        if not frame:
+            return
+        for child in frame.findChildren(QPushButton):
+            f = child.property("asset_file")
+            child.setStyleSheet(self._thumb_style(f == self._asset_selections.get(seg_idx)))
+
+    @staticmethod
+    def _thumb_style(selected: bool) -> str:
+        if selected:
+            return (
+                "QPushButton { border: 3px solid #a6e3a1; border-radius: 4px; background: #181825; }"
+                "QPushButton:hover { border: 3px solid #74c7ec; }"
+            )
+        return (
+            "QPushButton { border: 2px solid #45475a; border-radius: 4px; background: #181825; }"
+            "QPushButton:hover { border: 2px solid #89b4fa; }"
+        )
+
+    def _get_thumbnail_path(self, filename: str) -> str | None:
+        _THUMB_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        base = Path(filename).stem
+        cached = _THUMB_CACHE_DIR / f"{base}.jpg"
+        if cached.exists():
+            return str(cached)
+
+        assets_dir = get("paths.assets", "./assets")
+        for root, _dirs, files in os.walk(assets_dir):
+            if filename in files:
+                src = os.path.join(root, filename)
+                import subprocess
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-skip_frame", "nokey",
+                    "-ss", "00:00:02",
+                    "-i", src,
+                    "-vframes", "1",
+                    "-q:v", "10",
+                    "-f", "image2",
+                    str(cached),
+                ]
+                subprocess.run(cmd, capture_output=True, timeout=15)
+                if cached.exists():
+                    return str(cached)
+                break
+        return None
+
+    def _on_asset_confirm(self):
+        if not hasattr(self, '_asset_selections') or not self._asset_selections:
+            QMessageBox.information(self, "提示", "请先选择素材。")
+            return
+        if not self._script:
+            return
+        for seg_idx, asset_file in self._asset_selections.items():
+            if seg_idx < len(self._script.segments):
+                db = Database(get("paths.database", "./database/clipforge.db"))
+                db.init_tables()
+                asset = db.get_asset_by_file(asset_file)
+                if asset:
+                    self._script.segments[seg_idx].keywords.append(asset_file)
+                db.close()
+        self.status_label.setText(f"已确认 {len(self._asset_selections)} 个素材选择。")
+        self.asset_confirm_btn.setEnabled(False)
+
+    # ── preview tab ──────────────────────────────────────────────
+
+    def _toggle_preview_play(self):
+        if self.preview_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.preview_player.pause()
+        else:
+            self.preview_player.play()
+
+    def _preview_seek(self, pos: int):
+        dur = self.preview_player.duration()
+        if dur > 0:
+            self.preview_player.setPosition(int(pos * dur / 100))
+
+    def _on_preview_pos(self, pos: int):
+        dur = self.preview_player.duration()
+        if dur > 0:
+            self.preview_slider.setValue(int(pos * 100 / dur))
+            s = pos // 1000
+            m = s // 60
+            s = s % 60
+            d = dur // 1000
+            dm = d // 60
+            ds = d % 60
+            self.preview_time.setText(f"{m:02d}:{s:02d} / {dm:02d}:{ds:02d}")
+
+    def _on_preview_dur(self, dur: int):
+        d = dur // 1000
+        m = d // 60
+        s = d % 60
+        self.preview_time.setText(f"00:00 / {m:02d}:{s:02d}")
+
+    def _on_preview_state(self, state):
+        if state == QMediaPlayer.PlaybackState.PlayingState:
+            self.preview_play_btn.setText("⏸")
+        else:
+            self.preview_play_btn.setText("▶")
+
+    def _on_generate_preview(self):
+        if not self._script:
+            return
+        config = get_config()
+        db = Database(get("paths.database", "./database/clipforge.db"))
+        db.init_tables()
+        matcher = Matcher(db)
+        rule_engine = RuleEngine()
+        rule_engine.register_defaults()
+        tb = TimelineBuilder(matcher, rule_engine)
+        timeline = tb.build(self._script)
+        db.close()
+
+        preview_path = str(Path(get("paths.cache", "./cache")) / "preview_temp" / "preview.mp4")
+        Path(preview_path).parent.mkdir(parents=True, exist_ok=True)
+
+        renderer = Renderer(config)
+        try:
+            self.status_label.setText("正在生成预览...")
+            renderer.render_preview(
+                timeline=timeline,
+                output_path=preview_path,
+                assets_dir=get("paths.assets", "./assets"),
+                style=self._script.style,
+            )
+            self.status_label.setText("预览生成完成")
+            self.preview_player.setSource(QUrl.fromLocalFile(preview_path))
+            self.preview_player.play()
+        except Exception as e:
+            self.status_label.setText(f"预览生成失败: {e}")
+            QMessageBox.warning(self, "预览失败", str(e))
+
+    def _refresh_feedback_table(self):
+        if not self._script:
+            return
+        segs = self._script.segments
+        self.feedback_table.setRowCount(len(segs))
+        for i, seg in enumerate(segs):
+            self.feedback_table.setItem(i, 0, QTableWidgetItem(str(seg.id)))
+            self.feedback_table.setItem(i, 1, QTableWidgetItem(seg.text[:50] + ("..." if len(seg.text) > 50 else "")))
+            rating_combo = QComboBox()
+            rating_combo.addItems(FEEDBACK_OPTIONS)
+            self.feedback_table.setCellWidget(i, 2, rating_combo)
+            self.feedback_table.setItem(i, 3, QTableWidgetItem(""))
+
+    def _on_submit_feedback(self):
+        if not self._script:
+            return
+        feedbacks: list[Feedback] = []
+        for i in range(self.feedback_table.rowCount()):
+            seg_id_item = self.feedback_table.item(i, 0)
+            if not seg_id_item:
+                continue
+            seg_id = int(seg_id_item.text())
+            rating_widget = self.feedback_table.cellWidget(i, 2)
+            rating = rating_widget.currentText() if rating_widget else "satisfied"
+            notes_item = self.feedback_table.item(i, 3)
+            notes = notes_item.text().strip() if notes_item else ""
+            feedbacks.append(Feedback(segment_id=seg_id, rating=rating, notes=notes))
+
+        unsatisfied = [fb for fb in feedbacks if not fb.rating.startswith("satisfied")]
+        if unsatisfied:
+            config = get_config()
+            planner = AIPlanner(config, budget=self._budget)
+            if planner.enabled:
+                self.status_label.setText("正在根据反馈重新规划...")
+                fb_text = "\n".join(
+                    f"段{fb.segment_id}: {fb.rating} - {fb.notes}" for fb in unsatisfied
+                )
+                try:
+                    result = planner._revise_script(
+                        self._script.model_dump(),
+                        f"用户反馈:\n{fb_text}\n请根据反馈优化脚本。"
+                    )
+                    if result and "segments" in result:
+                        updated = Script(**result)
+                        self._script = updated
+                        self._display_script(self._script)
+                        self._refresh_asset_grid()
+                        self.status_label.setText("已根据反馈更新脚本。")
+                except Exception as e:
+                    self.status_label.setText(f"反馈处理失败: {e}")
+        else:
+            self.status_label.setText("所有段落已满意，无需修改。")
 
     def _display_script(self, script: Script):
         self._editing = True

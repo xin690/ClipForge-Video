@@ -32,12 +32,18 @@ class TimelineBuilder:
 
     def _build_item(self, seg: Segment, script: Script, start_time: float,
                     prev_emotion: str | None = None) -> TimelineItem:
+        prev_seg = None
+        if prev_emotion is not None and hasattr(self, '_last_asset'):
+            prev_seg = self._last_asset
         assets = self.matcher.match(
             text=seg.text,
             keywords=seg.keywords,
             top_k=1,
+            emotion=seg.emotion,
+            prev_asset=prev_seg,
         )
-        matched_asset = assets[0] if assets else None
+        matched_asset = assets[0][0] if assets else None
+        self._last_asset = matched_asset
 
         rule_ctx = {
             "emotion": seg.emotion,

@@ -4,6 +4,15 @@ from core.database import Database
 from core.models import Asset
 
 
+TONE_MAP: dict[str, set[str]] = {
+    "normal": {"neutral", "natural", "daily", "indoor"},
+    "strong": {"dynamic", "contrast", "bold", "bright", "red", "orange"},
+    "happy": {"bright", "warm", "sunny", "colorful", "yellow", "green"},
+    "sad": {"dark", "blue", "calm", "moody", "rain", "gray"},
+    "calm": {"soft", "blue", "pastel", "nature", "sky", "water"},
+}
+
+
 class Matcher:
     def __init__(self, database: Database):
         self.db = database
@@ -18,7 +27,9 @@ class Matcher:
         keywords: list[str],
         top_k: int = 3,
         asset_type: str = "video",
-    ) -> list[Asset]:
+        emotion: str = "normal",
+        prev_asset: Optional[Asset] = None,
+    ) -> list[tuple[Asset, float]]:
         all_keywords = self._extract_keywords(text, keywords)
         if not all_keywords:
             return []
@@ -27,12 +38,16 @@ class Matcher:
         scored: list[tuple[Asset, float]] = []
 
         for asset in candidates:
-            score = self._score(asset, all_keywords)
-            if score > 0:
-                scored.append((asset, score))
+            kw_score = self._keyword_score(asset, all_keywords)
+            if kw_score <= 0:
+                continue
+            tone_score = self._emotion_tone_score(asset, emotion)
+            div_score = self._diversity_score(asset, prev_asset, all_keywords)
+            total = kw_score * 50.0 + tone_score * 30.0 + div_score * 20.0
+            scored.append((asset, total))
 
         scored.sort(key=lambda x: x[1], reverse=True)
-        return [asset for asset, _ in scored[:top_k]]
+        return scored[:top_k]
 
     def match_bgm(self, style: str = "knowledge", top_k: int = 1) -> list[Asset]:
         candidates = self.db.search_assets(type_filter="bgm", limit=50)
@@ -47,7 +62,7 @@ class Matcher:
         kw = style_keywords.get(style, [])
         scored = []
         for asset in candidates:
-            score = self._score(asset, kw)
+            score = self._keyword_score(asset, kw)
             if score > 0:
                 scored.append((asset, score))
 
@@ -66,7 +81,7 @@ class Matcher:
 
         return list(result)
 
-    def _score(self, asset: Asset, keywords: list[str]) -> float:
+    def _keyword_score(self, asset: Asset, keywords: list[str]) -> float:
         if not asset.tags:
             return 0.0
 
@@ -89,3 +104,25 @@ class Matcher:
             return 0.0
 
         return matched / len(keywords) if keywords else 0.0
+
+    def _emotion_tone_score(self, asset: Asset, emotion: str) -> float:
+        if not asset.tags or emotion not in TONE_MAP:
+            return 0.0
+        expected = TONE_MAP[emotion]
+        if not expected:
+            return 0.0
+        asset_tags = set(t.lower() for t in asset.tags)
+        hits = sum(1 for tag in asset_tags if tag in expected)
+        return min(hits / len(expected), 1.0)
+
+    def _diversity_score(self, asset: Asset, prev_asset: Optional[Asset], keywords: list[str]) -> float:
+        if not prev_asset or not prev_asset.tags or not asset.tags:
+            return 0.5
+        prev_tags = set(t.lower() for t in prev_asset.tags)
+        cur_tags = set(t.lower() for t in asset.tags)
+        overlap = len(prev_tags & cur_tags)
+        if overlap == 0:
+            return 1.0
+        if overlap >= 3:
+            return 0.0
+        return max(0.0, 1.0 - overlap / 3.0)

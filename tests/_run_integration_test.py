@@ -40,8 +40,9 @@ for text, keywords, topk in tests:
     results = matcher.match(text, keywords, top_k=topk)
     print(f"Match '{keywords}': {len(results)} results")
     for r in results:
-        tags = ", ".join(r.tags)
-        print(f"  [{r.type}] {r.file} -> tags: {tags}")
+        asset, score = r if isinstance(r, tuple) else (r, 0)
+        tags = ", ".join(asset.tags)
+        print(f"  [{asset.type}] {asset.file} score={score:.0f} -> tags: {tags}")
 
 # Build timeline
 rules = RuleEngine()

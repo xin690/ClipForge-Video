@@ -604,6 +604,90 @@ class Renderer:
             return video_path
         return out_path
 
+    def render_preview(
+        self,
+        timeline: Timeline,
+        output_path: str,
+        assets_dir: str = "./assets",
+        segment_ids: Optional[list[int]] = None,
+        style: Optional[str] = None,
+    ) -> str:
+        preview_cfg = self._config.get("preview", {})
+        p_width = preview_cfg.get("width", 854)
+        p_height = preview_cfg.get("height", 480)
+        p_preset = preview_cfg.get("preset", "ultrafast")
+        p_crf = preview_cfg.get("crf", 35)
+
+        temp_workspace = Path(tempfile.mkdtemp(dir=str(self.temp_dir)))
+        try:
+            clip_files: list[str] = []
+            for i, item in enumerate(timeline.timeline):
+                if segment_ids and i not in segment_ids:
+                    continue
+                item_duration = item.end - item.start
+                out_path = os.path.join(str(temp_workspace), f"clip_{i:04d}.mp4")
+
+                asset_path = self._find_asset(item.asset, assets_dir, item.asset_type)
+                ok = False
+                if asset_path and os.path.exists(asset_path):
+                    is_image = asset_path.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".webp"))
+                    vf = f"fps={self.fps},scale={p_width}:{p_height}:force_original_aspect_ratio=decrease,pad={p_width}:{p_height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
+                    cmd = [self.ffmpeg_path, "-y"]
+                    if is_image:
+                        cmd.extend(["-loop", "1"])
+                    cmd.extend([
+                        "-i", asset_path,
+                        "-c:v", "libx264", "-preset", p_preset, "-crf", str(p_crf),
+                        "-r", str(self.fps), "-g", "60",
+                        "-vf", vf,
+                        "-an",
+                        "-vsync", "cfr", "-t", str(item_duration),
+                        out_path,
+                    ])
+                    success, _ = execute(cmd, timeout=120)
+                    if success:
+                        ok = True
+
+                if not ok:
+                    vf = f"fps={self.fps},scale={p_width}:{p_height},format=yuv420p"
+                    cmd = [
+                        self.ffmpeg_path, "-y",
+                        "-f", "lavfi", "-i", f"color=c=blue:s={p_width}x{p_height}:r={self.fps}:d={item_duration}",
+                        "-c:v", "libx264", "-preset", p_preset, "-crf", str(p_crf),
+                        "-r", str(self.fps), "-g", "60",
+                        "-vf", vf,
+                        "-an",
+                        "-vsync", "cfr", "-t", str(item_duration),
+                        out_path,
+                    ]
+                    execute(cmd, timeout=60)
+
+                clip_files.append(out_path)
+
+            if not clip_files:
+                raise RuntimeError("没有要预览的镜头")
+
+            concat_path = str(temp_workspace / "_preview.mp4")
+            filelist = "\n".join(f"file '{p}'" for p in clip_files)
+            filelist_path = str(temp_workspace / "_concat.txt")
+            with open(filelist_path, "w", encoding="utf-8") as f:
+                f.write(filelist)
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-f", "concat", "-safe", "0",
+                "-fflags", "+genpts",
+                "-i", filelist_path,
+                "-c:v", "libx264", "-preset", p_preset, "-crf", str(p_crf),
+                "-pix_fmt", "yuv420p", "-vsync", "cfr",
+                "-an",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+            execute(cmd)
+            return output_path
+        finally:
+            shutil.rmtree(str(temp_workspace), ignore_errors=True)
+
     def _has_audio_stream(self, video_path: str) -> bool:
         try:
             r = subprocess.run(

@@ -52,6 +52,13 @@ class Timeline(BaseModel):
     fps: int = 30
 
 
+class Feedback(BaseModel):
+    segment_id: int
+    rating: str = "satisfied"
+    notes: str = ""
+    auto_fix: bool = False
+
+
 class Project(BaseModel):
     name: str = "未命名项目"
     script_path: str = ""

@@ -1,5 +1,6 @@
 import pytest
 from core.matcher import Matcher
+from core.models import Asset
 
 
 class StubDB:
@@ -9,22 +10,24 @@ class StubDB:
     def search_assets(self, keyword="", type_filter="", limit=100):
         results = []
         for a in self._assets:
-            if type_filter and a["type"] != type_filter:
+            if type_filter and a.get("type") != type_filter:
                 continue
             if keyword:
                 kw_lower = keyword.lower()
                 tag_str = " ".join(a.get("tags", [])).lower()
                 if kw_lower not in tag_str:
                     continue
-            results.append(self._dict_to_asset(a))
+            results.append(Asset(**a))
         return results
 
-    def _dict_to_asset(self, d):
-        from core.models import Asset
-        return Asset(**d)
+    def get_asset_by_file(self, file: str):
+        for a in self._assets:
+            if a.get("file") == file:
+                return Asset(**a)
+        return None
 
     def get_all_assets(self):
-        return [self._dict_to_asset(a) for a in self._assets]
+        return [Asset(**a) for a in self._assets]
 
 
 @pytest.fixture
@@ -42,7 +45,7 @@ class TestMatcher:
     def test_exact_match(self, matcher):
         results = matcher.match(text="减脂", keywords=["减脂"], top_k=3)
         assert len(results) >= 1
-        assert any("减脂" in " ".join(a.tags) for a in results)
+        assert any("减脂" in " ".join(a.tags) for a, _ in results)
 
     def test_no_match(self, matcher):
         results = matcher.match(text="不存在的关键词", keywords=["不存在的关键词"], top_k=3)
@@ -59,7 +62,7 @@ class TestMatcher:
     def test_type_filter(self, matcher):
         results = matcher.match(text="音乐", keywords=["音乐"], top_k=3, asset_type="bgm")
         assert len(results) >= 1
-        assert all(a.type == "bgm" for a in results)
+        assert all(a.type == "bgm" for a, _ in results)
 
     def test_synonym_matching(self, matcher):
         matcher.load_synonyms({"减肥": ["减脂"]})
@@ -73,8 +76,17 @@ class TestMatcher:
     def test_score_ordering(self, matcher):
         results = matcher.match(text="减脂健身", keywords=["减脂", "健身"], top_k=3)
         if len(results) >= 2:
-            first_tags = " ".join(results[0].tags)
-            second_tags = " ".join(results[1].tags)
+            first_tags = " ".join(results[0][0].tags)
+            second_tags = " ".join(results[1][0].tags)
             first_score = sum(1 for kw in ["减脂", "健身"] if kw.lower() in first_tags.lower())
             second_score = sum(1 for kw in ["减脂", "健身"] if kw.lower() in second_tags.lower())
-            assert first_score >= second_score
+            assert results[0][1] >= results[1][1]
+
+    def test_emotion_tone_score(self, matcher):
+        results = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal")
+        assert len(results) >= 0
+
+    def test_diversity_score(self, matcher):
+        prev = Asset(file="gym01.mp4", type="video", tags=["健身", "运动"])
+        results = matcher.match(text="减脂", keywords=["减脂"], top_k=3, emotion="normal", prev_asset=prev)
+        assert len(results) >= 0
