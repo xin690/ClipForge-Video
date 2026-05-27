@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
     QGroupBox, QFormLayout, QFileDialog, QMessageBox, QTabWidget,
-    QWidget, QSlider,
+    QWidget, QSlider, QColorDialog,
 )
 from PyQt6.QtCore import Qt
 
@@ -95,6 +95,48 @@ class SettingsDialog(QDialog):
         self.combo_whisper.addItems(["tiny", "base", "small"])
         subtitle_layout.addRow("Whisper 模型:", self.combo_whisper)
 
+        sep = QLabel("—— 以下为样式设置 ——")
+        sep.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        subtitle_layout.addRow("", sep)
+
+        self.combo_font_family = QComboBox()
+        self.combo_font_family.setEditable(True)
+        self.combo_font_family.addItems([
+            "Microsoft YaHei", "SimHei", "SimSun", "FangSong",
+            "KaiTi", "Microsoft JhengHei", "Noto Sans SC",
+            "Source Han Sans SC", "Consolas", "Arial",
+        ])
+        subtitle_layout.addRow("字体:", self.combo_font_family)
+
+        self.spin_font_size = QSpinBox()
+        self.spin_font_size.setRange(12, 120)
+        subtitle_layout.addRow("字号:", self.spin_font_size)
+
+        self.btn_font_color = QPushButton()
+        self.btn_font_color.setFixedSize(40, 24)
+        self.btn_font_color.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_font_color.clicked.connect(self._pick_color)
+        subtitle_layout.addRow("颜色:", self.btn_font_color)
+
+        self.check_bold = QCheckBox()
+        subtitle_layout.addRow("粗体:", self.check_bold)
+
+        self.spin_outline = QSpinBox()
+        self.spin_outline.setRange(0, 10)
+        subtitle_layout.addRow("边框:", self.spin_outline)
+
+        self.spin_shadow = QSpinBox()
+        self.spin_shadow.setRange(0, 10)
+        subtitle_layout.addRow("阴影:", self.spin_shadow)
+
+        self.combo_position = QComboBox()
+        self.combo_position.addItems(["bottom", "top", "center"])
+        subtitle_layout.addRow("位置:", self.combo_position)
+
+        self.combo_animation = QComboBox()
+        self.combo_animation.addItems(["none", "pulse", "swing", "fadein", "scale", "typing"])
+        subtitle_layout.addRow("动画:", self.combo_animation)
+
         tabs.addTab(subtitle_tab, "字幕")
 
         render_tab = QWidget()
@@ -160,6 +202,20 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(tabs, 1)
 
+        spin_style = """
+            QSpinBox, QDoubleSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button, QDoubleSpinBox::up-button {
+                width: 20px;
+            }
+            QSpinBox::down-button, QDoubleSpinBox::down-button {
+                width: 20px;
+            }
+        """
+        for spin in self.findChildren((QSpinBox, QDoubleSpinBox)):
+            spin.setStyleSheet(spin_style)
+
         btn_layout = QHBoxLayout()
         self.btn_reset = QPushButton("恢复默认")
         self.btn_reset.clicked.connect(self._reset_defaults)
@@ -193,6 +249,15 @@ class SettingsDialog(QDialog):
         self.spin_speed.setValue(get("tts.speed", 1.0))
         self.combo_sub_mode.setCurrentText(get("subtitle.engine", "text"))
         self.combo_whisper.setCurrentText(get("subtitle.whisper_model", "tiny"))
+        self.combo_font_family.setCurrentText(get("subtitle.font_family", "Microsoft YaHei"))
+        self.spin_font_size.setValue(get("subtitle.font_size", 36))
+        self._current_color = get("subtitle.font_color", "#FFFFFF")
+        self.btn_font_color.setStyleSheet(f"background-color: {self._current_color};")
+        self.check_bold.setChecked(get("subtitle.bold", False))
+        self.spin_outline.setValue(get("subtitle.outline", 2))
+        self.spin_shadow.setValue(get("subtitle.shadow", 1))
+        self.combo_position.setCurrentText(get("subtitle.position", "bottom"))
+        self.combo_animation.setCurrentText(get("subtitle.animation", "none"))
         self.combo_preset.setCurrentText(get("video.preset", "veryfast"))
         self.spin_crf.setValue(get("video.crf", 23))
         self.spin_bgm_volume.setValue(get("bgm.volume", 0.3))
@@ -217,6 +282,14 @@ class SettingsDialog(QDialog):
         self._config["tts"]["speed"] = self.spin_speed.value()
         self._config["subtitle"]["engine"] = self.combo_sub_mode.currentText()
         self._config["subtitle"]["whisper_model"] = self.combo_whisper.currentText()
+        self._config["subtitle"]["font_family"] = self.combo_font_family.currentText()
+        self._config["subtitle"]["font_size"] = self.spin_font_size.value()
+        self._config["subtitle"]["font_color"] = self._current_color
+        self._config["subtitle"]["bold"] = self.check_bold.isChecked()
+        self._config["subtitle"]["outline"] = self.spin_outline.value()
+        self._config["subtitle"]["shadow"] = self.spin_shadow.value()
+        self._config["subtitle"]["position"] = self.combo_position.currentText()
+        self._config["subtitle"]["animation"] = self.combo_animation.currentText()
         self._config["video"]["preset"] = self.combo_preset.currentText()
         self._config["video"]["crf"] = self.spin_crf.value()
         self._config["bgm"]["volume"] = self.spin_bgm_volume.value()
@@ -232,9 +305,16 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def _reset_defaults(self):
-        from core.config import _default_config
+        from core.config import _default_config, save_config
         self._config = _default_config()
+        save_config(self._config)
         self._load_settings()
+
+    def _pick_color(self):
+        color = QColorDialog.getColor()
+        if color.isValid():
+            self.btn_font_color.setStyleSheet(f"background-color: {color.name()};")
+            self._current_color = color.name()
 
     def _browse_dir(self, line_edit: QLineEdit):
         dir_path = QFileDialog.getExistingDirectory(self, "选择目录", line_edit.text())

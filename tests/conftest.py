@@ -5,6 +5,23 @@ import json
 import shutil
 
 
+@pytest.fixture(autouse=True)
+def _no_custom_subtitle():
+    """清除字幕自定义字体，确保 SubtitleStyleRule 使用情绪映射"""
+    from core.config import get_config
+    cfg = get_config()
+    sub = cfg.get("subtitle")
+    if sub:
+        sub.pop("font_family", None)
+        sub.pop("font_color", None)
+        sub.pop("font_size", None)
+        sub.pop("bold", None)
+        sub.pop("outline", None)
+        sub.pop("shadow", None)
+        sub.pop("position", None)
+        sub.pop("animation", None)
+
+
 @pytest.fixture
 def temp_dir():
     path = tempfile.mkdtemp()
