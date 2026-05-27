@@ -1,0 +1,110 @@
+import pytest
+import os
+from core.subtitle import SubtitleGenerator
+
+
+class TestSubtitleInit:
+    def test_init_defaults(self):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": "./cache"}}
+        gen = SubtitleGenerator(config)
+        assert gen.mode == "text"
+
+    def test_cache_dir_created(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        assert gen.cache_dir.exists()
+
+
+class TestSubtitleFormat:
+    def test_format_srt_single(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "测试字幕")]
+        out = os.path.join(temp_dir, "test.srt")
+        gen.generate_from_text(segments, out, "normal")
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "1" in content
+        assert "00:00:00,000 --> 00:00:05,000" in content
+        assert "测试字幕" in content
+
+    def test_format_srt_multiple(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 3.0, "第一段"), (3.0, 6.0, "第二段")]
+        out = os.path.join(temp_dir, "multi.srt")
+        gen.generate_from_text(segments, out, "normal")
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "第一段" in content
+        assert "第二段" in content
+        assert content.count("-->") == 2
+
+    def test_format_ass_single(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "测试ASS字幕", "normal")]
+        out = os.path.join(temp_dir, "test.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "[Script Info]" in content
+        assert "[V4+ Styles]" in content
+        assert "[Events]" in content
+        assert "测试ASS字幕" in content
+
+    def test_format_ass_styles_differ(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        normal_seg = [(0.0, 5.0, "测试", "normal")]
+        strong_seg = [(0.0, 5.0, "测试", "big_yellow")]
+        normal_out = os.path.join(temp_dir, "normal.ass")
+        strong_out = os.path.join(temp_dir, "strong.ass")
+        gen.generate_from_text(normal_seg, normal_out)
+        gen.generate_from_text(strong_seg, strong_out)
+        with open(normal_out, encoding="utf-8") as f:
+            normal_content = f.read()
+        with open(strong_out, encoding="utf-8") as f:
+            strong_content = f.read()
+        assert ",normal,," in normal_content
+        assert ",big_yellow,," in strong_content
+
+    def test_empty_segments(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        out = os.path.join(temp_dir, "empty.ass")
+        gen.generate_from_text([], out, "normal")
+        assert os.path.exists(out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "[Events]" in content
+
+    def test_srt_time_format_precision(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(1.234, 5.678, "时间精度测试")]
+        out = os.path.join(temp_dir, "precision.srt")
+        gen.generate_from_text(segments, out, "normal")
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "01,234" in content.split("-->")[0]
+
+    def test_ass_time_format(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(1.5, 5.5, "时间测试", "normal")]
+        out = os.path.join(temp_dir, "time.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "0:00:01.50" in content or "0:00:01,50" in content
+
+    def test_ass_style_font_settings(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "样式测试", "big_yellow")]
+        out = os.path.join(temp_dir, "style.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "Microsoft YaHei" in content or "Fontname" in content

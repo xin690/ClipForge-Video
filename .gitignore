@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+*.egg
+
+# Project runtime
+cache/
+database/*.db
+output/
+
+# Build
+dist/
+build/
+*.spec
+
+# Assets (user files, not part of source)
+assets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Config (may contain local paths/secrets)
+config.yaml

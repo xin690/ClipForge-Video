@@ -1,0 +1,30 @@
+{
+  "title": "中国自然风光",
+  "duration": 24,
+  "style": "knowledge",
+  "voice": "female_01",
+  "bgm": "bgm_nature.mp3",
+  "segments": [
+    {
+      "id": 1,
+      "text": "巍峨的高山，是大地挺起的脊梁",
+      "keywords": ["高山", "山脉"],
+      "emotion": "strong",
+      "duration": 5
+    },
+    {
+      "id": 2,
+      "text": "辽阔的大海，包容着万物的呼吸",
+      "keywords": ["大海", "海洋"],
+      "emotion": "calm",
+      "duration": 5
+    },
+    {
+      "id": 3,
+      "text": "无边的草原，风吹草低见牛羊",
+      "keywords": ["草原", "牧场"],
+      "emotion": "happy",
+      "duration": 5
+    }
+  ]
+}

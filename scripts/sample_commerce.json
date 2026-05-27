@@ -1,0 +1,30 @@
+{
+  "title": "商业趋势分析",
+  "duration": 15,
+  "style": "commerce",
+  "voice": "female_01",
+  "bgm": "bgm_commerce.mp3",
+  "segments": [
+    {
+      "id": 1,
+      "text": "2026年AI技术正在深刻改变商业格局。",
+      "keywords": ["business", "tech"],
+      "emotion": "strong",
+      "duration": 5
+    },
+    {
+      "id": 2,
+      "text": "企业需要拥抱变化，抓住数字化转型的机遇。",
+      "keywords": ["business"],
+      "emotion": "normal",
+      "duration": 5
+    },
+    {
+      "id": 3,
+      "text": "未来属于那些敢于创新的人。",
+      "keywords": ["tech"],
+      "emotion": "strong",
+      "duration": 5
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "title": "健康生活小贴士",
+  "duration": 18,
+  "style": "entertainment",
+  "voice": "female_01",
+  "bgm": "bgm_upbeat.mp3",
+  "segments": [
+    {
+      "id": 1,
+      "text": "每天喝八杯水，保持身体水分充足。",
+      "keywords": ["knowledge"],
+      "emotion": "normal",
+      "duration": 6
+    },
+    {
+      "id": 2,
+      "text": "坚持晨跑，让一天都充满活力！",
+      "keywords": ["fitness"],
+      "emotion": "happy",
+      "duration": 6
+    },
+    {
+      "id": 3,
+      "text": "好的生活习惯，是健康的基础。",
+      "keywords": ["knowledge"],
+      "emotion": "calm",
+      "duration": 6
+    }
+  ]
+}

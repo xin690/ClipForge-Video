@@ -1,0 +1,30 @@
+{
+  "title": "减脂知识科普",
+  "duration": 21,
+  "style": "knowledge",
+  "voice": "female_01",
+  "bgm": "bgm_knowledge.mp3",
+  "segments": [
+    {
+      "id": 1,
+      "text": "很多人减脂失败，不是因为运动不够，而是饮食结构出了问题。",
+      "keywords": ["knowledge"],
+      "emotion": "normal",
+      "duration": 7
+    },
+    {
+      "id": 2,
+      "text": "科学研究表明，控制热量摄入比增加运动消耗更有效。",
+      "keywords": ["knowledge"],
+      "emotion": "strong",
+      "duration": 7
+    },
+    {
+      "id": 3,
+      "text": "合理的饮食搭配，加上适度的运动，才能实现健康减脂。",
+      "keywords": ["fitness"],
+      "emotion": "calm",
+      "duration": 7
+    }
+  ]
+}
