@@ -20,8 +20,8 @@ echo.
 
 :: Menu
 echo Select test mode:
-echo   1 - Quick test (51 tests, no FFmpeg needed)
-echo   2 - Full test (54 pytest tests)
+echo   1 - Quick test (36 checks, no FFmpeg needed)
+echo   2 - Full test (168 pytest tests)
 echo   3 - Generate test assets (requires FFmpeg)
 echo   4 - Input/output module check
 echo.
@@ -36,7 +36,7 @@ if "%MODE%"=="1" (
 
 if "%MODE%"=="2" (
     echo.
-    echo Running pytest suite (54 tests)...
+    echo Running pytest suite (168 tests)...
     echo.
     %PYTHON_CMD% -m pytest tests/ -v --tb=short
 )
@@ -62,7 +62,7 @@ modules = [
     'core.config','core.models','core.database','core.matcher',
     'core.rules','core.timeline','core.tts','core.subtitle',
     'core.ffmpeg','core.renderer','core.pipeline','core.scanner',
-    'core.ai_planner',
+    'core.ai_planner','core.downloader','core.qa',
 ]
 ok, fail = 0, 0
 for m in modules:

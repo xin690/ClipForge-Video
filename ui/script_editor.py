@@ -388,9 +388,27 @@ class ScriptEditorTab(QWidget):
         from core.config import get_config
         config = get_config()
 
+        try:
+            from core.models import Timeline, TimelineItem
+            items = []
+            current_time = 0.0
+            for seg in script.segments:
+                items.append(TimelineItem(
+                    start=current_time, end=current_time + seg.duration,
+                    asset="", subtitle=seg.text,
+                    subtitle_style=seg.emotion,
+                ))
+                current_time += seg.duration
+            preview_tl = Timeline(timeline=items)
+            if hasattr(self, '_on_timeline_ready') and callable(self._on_timeline_ready):
+                self._on_timeline_ready(preview_tl)
+        except Exception:
+            pass
+
         self.btn_generate.setText("⏹ 取消")
         self.btn_generate.setObjectName("danger_btn")
-        self.setStyleSheet(self.styleSheet())
+        self.style().unpolish(self.btn_generate)
+        self.style().polish(self.btn_generate)
         self.main_window.show_progress(True)
         self.status_label.setText("正在生成视频...")
 
@@ -432,7 +450,8 @@ class ScriptEditorTab(QWidget):
     def _reset_generate_btn(self):
         self.btn_generate.setText("▶ 生成视频")
         self.btn_generate.setObjectName("primary_btn")
-        self.setStyleSheet(self.styleSheet())
+        self.style().unpolish(self.btn_generate)
+        self.style().polish(self.btn_generate)
         self._worker_cleanup()
 
     def _worker_cleanup(self):

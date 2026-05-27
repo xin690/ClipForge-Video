@@ -65,7 +65,10 @@ class BatchWorker(QThread):
             output_path = os.path.join(self.output_dir, f"{script_name}.mp4")
 
             try:
-                result = self._pipeline.run(script_path, output_path)
+                result = self._pipeline.run(
+                    script_path, output_path,
+                    progress_callback=self._on_progress,
+                )
                 results.append((script_path, True, result))
                 self.item_finished.emit(script_path, True, result)
             except Exception as e:
@@ -81,3 +84,6 @@ class BatchWorker(QThread):
     def cancel(self):
         if self._pipeline:
             self._pipeline.cancel()
+
+    def _on_progress(self, progress: PipelineProgress):
+        self.progress_updated.emit(progress)

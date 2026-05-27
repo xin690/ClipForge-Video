@@ -329,12 +329,12 @@ class AIPlanner:
         seen = set()
         unique = []
         for f in problematic:
-            key = (f.get("segment_id"), str(f.get("note", ""))[:20])
+            key = (f.get("segment_id"), str(f.get("note") or f.get("notes", ""))[:20])
             if key not in seen:
                 seen.add(key)
                 unique.append(f)
         # 仅节奏问题 → 本地调时长
-        only_pacing = all("时长" in f.get("note", "") or "节奏" in f.get("note", "") for f in unique)
+        only_pacing = all("时长" in (f.get("note") or f.get("notes", "")) or "节奏" in (f.get("note") or f.get("notes", "")) for f in unique)
         if only_pacing:
             for seg in script_dict.get("segments", []):
                 seg["duration"] = max(3, min(10, seg["duration"] - 1))

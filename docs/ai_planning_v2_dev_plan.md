@@ -1,7 +1,7 @@
 # ClipForge AI 规划 v3 — 实施总结
 
-**状态**: 全部完成，155/155 测试通过  
-**提交**: TBD
+**状态**: 全部完成，168/168 测试通过  
+**提交**: v3 overhaul (`f03e979`) + target duration (`7240be9`) + QA module (`0b43f8d`)
 
 ---
 
@@ -97,6 +97,7 @@ ai:
 [重新规划] ─ 清空结果重新生成
 [保存脚本] ─ 导出 JSON
 [下载素材] ─ 根据搜索词下载
+[内容检查] ─ 10 项自动化脚本质检 / 预设切换 / 重新检查
 ```
 
 ---
@@ -109,7 +110,7 @@ ai:
 | `core/matcher.py` | 素材匹配：类型感知权重 |
 | `core/config.py` | 配置默认值 |
 | `config.template.yaml` | 配置模板 |
-| `ui/ai_plan_dialog.py` | 对话框：脚本编辑 + 脚本预览双 Tab |
+| `ui/ai_plan_dialog.py` | 对话框：脚本编辑 + 脚本预览 + 内容检查三 Tab |
 | `core/scanner.py` | 素材扫描：标签增强 |
 | `core/timeline.py` | 时间线构建：传入 script.style |
 | `tests/test_ai_planner.py` | 更新测试适配 |

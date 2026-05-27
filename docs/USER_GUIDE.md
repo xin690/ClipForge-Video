@@ -1,6 +1,6 @@
 # ClipForge 用户手册
 
-> 轻量级 AI 视频自动剪辑引擎 | v0.2.0
+> 轻量级 AI 视频自动剪辑引擎 | v0.3.0
 > 适用平台：Windows 10/11
 > 中文完整版见：`docs/用户手册.md`
 
@@ -207,13 +207,14 @@ ClipForge/
 │   ├── ffmpeg.py            # FFmpeg 命令封装 + 执行
 │   ├── renderer.py          # 渲染编排器
 │   ├── ai_planner.py        # AI 规划层（主题规划 + 搜索关键词）
-│   ├── downloader.py        # NEW 素材自动下载（Pexels/Pixabay）
+│   ├── downloader.py        # 素材自动下载（Pexels/Pixabay）
+│   ├── qa.py                # 内容质检（脚本检查 + 导出预设）
 │   └── pipeline.py          # 完整工作流管线
 │
 ├── ui/                      # PyQt6 图形界面
 │   ├── main_window.py       # 主窗口
 │   ├── script_editor.py     # 脚本编辑器（含 AI 规划按钮）
-│   ├── ai_plan_dialog.py    # NEW AI 视频规划对话框
+│   ├── ai_plan_dialog.py    # AI 视频规划对话框（含脚本编辑 + 脚本预览 + 内容检查三 Tab）
 │   ├── asset_browser.py     # 素材浏览器
 │   ├── timeline_view.py     # 时间轴可视化
 │   ├── batch_panel.py       # 批量处理面板
@@ -233,7 +234,7 @@ ClipForge/
 ├── cache/                   # 缓存（TTS / 渲染临时文件）
 ├── database/                # SQLite 数据库
 │
-├── tests/                   # 测试（131 个）
+├── tests/                   # 测试（168 个）
 └── docs/                    # 文档
     ├── DEV_PLAN.md          # 开发计划
     └── USER_GUIDE.md        # 本文件
@@ -279,7 +280,7 @@ ai:
   provider: openai        # openai | qwen | deepseek
   api_key: ""             # API Key
   model: gpt-4o-mini      # 模型名
-  max_tokens: 500
+  max_versions: 2         # 最多保留版本数
 
 downloader:
   provider: pexels        # 素材提供商（pexels / pixabay）
@@ -437,7 +438,7 @@ py e2e_render.py scripts/sample_commerce.json
 py -m pytest tests/ -v
 ```
 
-153 个测试覆盖所有核心模块。
+168 个测试覆盖所有核心模块。
 
 ---
 
@@ -528,4 +529,4 @@ dist/
 
 ---
 
-> 本文档对应 ClipForge v0.2.0 | 153 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.3.0 | 168 测试通过 | 最后更新 2026-05-27

@@ -132,7 +132,8 @@ class BatchPanelTab(QWidget):
         self.btn_start.setObjectName("danger_btn")
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        self.setStyleSheet(self.styleSheet())
+        self.style().unpolish(self.btn_start)
+        self.style().polish(self.btn_start)
 
         from core.config import get_config
         self._worker = BatchWorker(get_config(), script_paths, output_dir_text)
@@ -163,7 +164,8 @@ class BatchPanelTab(QWidget):
     def _on_all_finished(self, results: list):
         self.btn_start.setText("▶ 开始批量处理")
         self.btn_start.setObjectName("primary_btn")
-        self.setStyleSheet(self.styleSheet())
+        self.style().unpolish(self.btn_start)
+        self.style().polish(self.btn_start)
         self.progress_label.setText("批量处理完成")
         self._worker = None
 

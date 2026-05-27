@@ -71,7 +71,7 @@ def main():
     from core.config import load_config, get_config, get, save_config
     load_config()
     check("config loaded", get("app.name") == "ClipForge")
-    check("config version", get("app.version") == "0.1.0")
+    check("config version", get("app.version") == "0.3.0")
     check("config video width", get("video.width") == 1920)
     check("config has ai", "ai" in get_config())
 
@@ -156,7 +156,7 @@ def main():
         ({"emotion": "sad"}, "subtitle.style", "soft_white"),
         ({"duration": 2}, "transition", "cut"),
         ({"duration": 5}, "transition", "fade"),
-        ({"duration": 10}, "transition", "slide"),
+        ({"duration": 10}, "transition", "fade"),
         ({"style": "knowledge"}, "camera", "slow_zoom"),
         ({"style": "news"}, "camera", "static"),
         ({"style": "entertainment"}, "camera", "pan"),

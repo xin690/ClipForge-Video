@@ -144,9 +144,11 @@ class AssetScanner:
 
     def remove_deleted(self) -> int:
         deleted = 0
+        type_dir_map = {"video": "videos", "image": "images", "bgm": "bgm", "voice": "voice"}
         for asset in self.db.get_all_assets():
             exists = False
-            type_dir = os.path.join(self.assets_dir, f"{asset.type}s")
+            sub_dir = type_dir_map.get(asset.type, f"{asset.type}s")
+            type_dir = os.path.join(self.assets_dir, sub_dir)
             if os.path.isdir(type_dir):
                 for root, _dirs, files in os.walk(type_dir):
                     if asset.file in files:

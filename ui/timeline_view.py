@@ -19,6 +19,7 @@ class TimelineView(QWidget):
     def __init__(self):
         super().__init__()
         self._timeline: Timeline | None = None
+        self._selected_index = -1
         self._item_widths: list[float] = []
         self._pixels_per_second = 60.0
         self.setMinimumHeight(120)

@@ -158,8 +158,8 @@ class Pipeline:
                 [os.path.join(voice_dir, f) for f in os.listdir(voice_dir) if f.endswith(".wav")],
                 key=lambda x: int(os.path.basename(x).replace("voice_", "").replace(".wav", ""))
             )
-            for item, vf in zip(timeline.timeline, voice_files):
-                item.voice_file = vf
+            for i, item in enumerate(timeline.timeline):
+                item.voice_file = voice_files[i] if i < len(voice_files) else None
             self.logger.info(f"配音生成完成: {len(voice_files)} 个文件")
 
             def _is_silent_audio(path: str) -> bool:

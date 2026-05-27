@@ -21,15 +21,15 @@
 
 ## 实际实施状态总结
 
-> 最后更新：2026-05-27 | 131/131 测试通过 | AI 内容规划 + 素材自动下载 完成
+> 最后更新：2026-05-27 | 168/168 测试通过 | AI 内容规划 + 素材自动下载 + 内容质检（QA） 完成
 
 ### 项目状态
 
 | 项目 | 状态 | 说明 |
 |---|---|---|
-| 所有 15 个核心模块 | ✅ 完成 | models, config, database, scanner, matcher, rules, timeline, tts, subtitle, renderer, ffmpeg, pipeline, ai_planner, downloader, script |
-| 所有 9 个 GUI 模块 | ✅ 完成 | main_window, theme, settings_dialog, script_editor, asset_browser, timeline_view, preview_panel, batch_panel, ai_plan_dialog |
-| 测试 | ✅ 131/131 通过 | 13 个测试文件，覆盖所有核心模块（含 AI 规划 + 下载器）|
+| 所有 16 个核心模块 | ✅ 完成 | models, config, database, scanner, matcher, rules, timeline, tts, subtitle, renderer, ffmpeg, pipeline, ai_planner, downloader, script, qa |
+| 所有 10 个 GUI 模块 | ✅ 完成 | main_window, theme, settings_dialog, script_editor, asset_browser, timeline_view, preview_panel, batch_panel, ai_plan_dialog |
+| 测试 | ✅ 168/168 通过 | 17 个测试文件，覆盖所有核心模块（含 AI 规划 + 下载器 + QA） |
 | 端到端渲染 | ✅ 通过 | `e2e_render.py` 输出 24s MP4（H.264 + AAC + 硬字幕 + BGM） |
 | FFmpeg | ✅ 全量版 | C:\ffmpeg\bin，支持 libass/vpx/x265/opus 等全部滤镜 |
 | xfade 转场 | ✅ 实现 | cut/fade/slide 转场，concat demuxer + xfade 滤镜链 |
@@ -137,8 +137,8 @@
 | 5 | FFmpeg execute 重写 | ✅ | 线程化管道读取 + cancel_event |
 | 6 | QThread 崩溃修复 | ✅ | _worker_cleanup() wait + deleteLater |
 | 7 | 编码参数规范化 | ✅ | yuv420p + ar 44100 + timescale 30000 |
-| 8 | 153/153 测试通过 | ✅ | 16 个测试文件全覆盖 |
-| 9 | 文档全面更新 | ✅ | 7 个文档文件 v0.2.0 |
+| 8 | 168/168 测试通过 | ✅ | 17 个测试文件全覆盖 |
+| 9 | 文档全面更新 | ✅ | 7 个文档文件 v0.3.0 |
 
 #### 第三梯队（增强功能）
 
@@ -1702,7 +1702,7 @@ class PreviewPanel(QWidget):
 
 ---
 
-### Phase 11：测试全面覆盖 ✅ 已完成（153/153 测试通过）
+### Phase 11：测试全面覆盖 ✅ 已完成（168/168 测试通过）
 
 #### 11.1 单元测试（pytest）
 

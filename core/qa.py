@@ -163,14 +163,15 @@ class QAChecker:
         )
 
     def _check_emotion(self, seg: Segment) -> CheckResult:
-        if seg.emotion not in _VALID_EMOTIONS:
+        emotion = seg.emotion or "normal"
+        if emotion not in _VALID_EMOTIONS:
             return CheckResult(
                 "emotion", "warn",
-                f"段{seg.id} 情绪 \"{seg.emotion}\" 无效（有效值: {', '.join(sorted(_VALID_EMOTIONS))}）",
+                f"段{seg.id} 情绪 \"{emotion}\" 无效（有效值: {', '.join(sorted(_VALID_EMOTIONS))}）",
                 seg.id,
             )
         return CheckResult(
-            "emotion", "pass", f"段{seg.id} 情绪 \"{seg.emotion}\" 有效", seg.id,
+            "emotion", "pass", f"段{seg.id} 情绪 \"{emotion}\" 有效", seg.id,
         )
 
     def _check_emotion_sequence(self, script: Script) -> list[CheckResult]:

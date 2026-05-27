@@ -39,6 +39,8 @@ class PreviewPanel(QWidget):
 
         self.volume_btn = QPushButton("🔊")
         self.volume_btn.setFixedWidth(40)
+        self.volume_btn.setCheckable(True)
+        self.volume_btn.clicked.connect(self._toggle_mute)
         controls.addWidget(self.volume_btn)
 
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
@@ -64,6 +66,10 @@ class PreviewPanel(QWidget):
 
     def stop(self):
         self.player.stop()
+
+    def _toggle_mute(self, checked: bool):
+        self.audio_output.setMuted(checked)
+        self.volume_btn.setText("🔇" if checked else "🔊")
 
     def _toggle_play(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:

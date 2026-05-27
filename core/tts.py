@@ -132,7 +132,7 @@ class TTSModule:
     def _edge_tts(self, text: str, output_path: str, voice: Optional[str] = None) -> str:
         async def _do():
             import edge_tts
-            rate = f"{int((self.speed - 1) * 50):+d}%"
+            rate = f"{int((self.speed - 1) * 100):+d}%"
             communicate = edge_tts.Communicate(text, voice or self.voice, rate=rate)
             await communicate.save(output_path)
             return output_path
@@ -183,7 +183,7 @@ class TTSModule:
         async with self._semaphore:
             try:
                 import edge_tts
-                rate = f"{int((self.speed - 1) * 50):+d}%"
+                rate = f"{int((self.speed - 1) * 100):+d}%"
                 communicate = edge_tts.Communicate(text, effective_voice, rate=rate)
                 await communicate.save(output_path)
                 self._save_cache(text, output_path, effective_voice)

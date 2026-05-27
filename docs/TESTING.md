@@ -1,6 +1,6 @@
 # ClipForge 测试文档
 
-> v0.2.0 | pytest 9.0.3 | 153 个测试用例 | 16 个测试文件
+> v0.3.0 | pytest 9.0.3 | 168 个测试用例 | 17 个测试文件
 
 ---
 
@@ -34,9 +34,9 @@
 
 | 指标 | 数值 |
 |---|---|---|
-| 测试文件 | 13 个 pytest + 6 个辅助脚本 |
-| 测试用例 | 153 个（pytest） |
-| 通过率 | 100%（153/153） |
+| 测试文件 | 14 个 pytest + 6 个辅助脚本 |
+| 测试用例 | 168 个（pytest） |
+| 通过率 | 100%（168/168） |
 | 运行时间 | ~0.5s（纯单元测试） / ~16s（含 FFmpeg 检测） |
 | 覆盖模块 | models, database, matcher, rules, timeline, tts, subtitle, ffmpeg, renderer, pipeline, ai_planner, downloader, integration |
 
@@ -58,6 +58,7 @@ tests/
 ├── test_integration.py           # 跨模块集成流程（3 个）
 ├── test_ai_planner.py            # AI 规划模块（15 个）
 ├── test_downloader.py            # 素材下载模块（19 个）
+├── test_qa.py                    # 内容质检模块（13 个）
 ├── run_all_tests.py              # 独立快速测试（无 pytest 依赖）
 ├── _run_integration_test.py      # 手动集成测试
 ├── generate_test_assets.py       # FFmpeg 测试素材生成
@@ -153,7 +154,7 @@ RUN_TESTS.bat
 
 ```
 1 - Quick test (~36 checks, no FFmpeg needed)
-2 - Full test (153 pytest tests)
+2 - Full test (168 pytest tests)
 3 - Generate test assets (requires FFmpeg)
 4 - Input/output module check
 ```
@@ -370,7 +371,29 @@ tests\test_pipeline.bat
 
 **测试方式：** 使用测试素材和最小化脚本，运行完整管线后验证输出 MP4 格式有效。
 
-### 4.12 `run_all_tests.py` — 独立快速测试
+### 4.12 `test_qa.py` — 内容质检模块（13 个用例）
+
+测试 `core/qa.py` 中的 `QAChecker` 引擎和 `QASummary` 数据结构。
+
+| 用例 | 验证内容 |
+|---|---|
+| `test_check_segment_count` | 段落数在允许范围内（4-12） |
+| `test_check_segment_count_fail` | 超出范围返回 fail |
+| `test_check_duration` | 每段时长在预设范围内 |
+| `test_check_text_length` | 文案字数检查 |
+| `test_check_keywords` | 关键词数量检查 |
+| `test_check_emotion_valid` | 情绪有效性检查（无非法值） |
+| `test_check_emotion_sequence` | 情绪序列多样性（连续相同 → warn） |
+| `test_check_keyword_diversity` | 关键词唯一率（>50% → pass） |
+| `test_check_voice_style_bgm` | 配音/风格/BGM 字段存在性 |
+| `test_check_total_duration` | 总时长匹配脚本 duration |
+| `test_preset_tiktok` | 抖音预设阈值加载（段数 5-15） |
+| `test_preset_youtube` | YouTube 预设阈值加载（段数 8-20） |
+| `test_preset_commerce` | 电商预设阈值加载（段数 3-8） |
+
+**测试方式：** 纯 Python 校验，无外部依赖。构造合法/非法脚本字典验证检查逻辑。
+
+### 4.13 `run_all_tests.py` — 独立快速测试
 
 不依赖 pytest 的快速测试脚本，包含约 36 个检查点：
 
@@ -476,6 +499,7 @@ class StubDB:
 | config | `core/config.py` | ⚠️ 部分覆盖 | `run_all_tests.py` |
 | ai_planner | `core/ai_planner.py` | ✅ 已覆盖（15 个测试） | `test_ai_planner.py` |
 | downloader | `core/downloader.py` | ✅ 已覆盖（19 个测试） | `test_downloader.py` |
+| qa | `core/qa.py` | ✅ 已覆盖（13 个测试） | `test_qa.py` |
 
 ### 6.2 覆盖缺口
 
@@ -809,4 +833,4 @@ py tests/run_all_tests.py
 
 ---
 
-> 本文档对应 ClipForge v0.2.0 | 153 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.3.0 | 168 测试通过 | 最后更新 2026-05-27
