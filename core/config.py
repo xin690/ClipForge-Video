@@ -92,7 +92,32 @@ def _default_config() -> dict[str, Any]:
         "downloader": {"provider": "pexels", "api_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
         "bgm": {"volume": 0.3},
         "logging": {"level": "INFO"},
-        "qa": {"preset": "tiktok", "auto_checks": True},
+        "qa": {
+            "preset": "tiktok", "auto_checks": True,
+            "presets": {
+                "tiktok": {
+                    "segment_min": 3, "segment_max": 8,
+                    "duration_per_seg_min": 2, "duration_per_seg_max": 10,
+                    "total_duration_max": 120,
+                    "text_min_len": 10, "text_max_len": 150,
+                    "min_keywords": 2, "duration_tolerance": 5,
+                },
+                "youtube": {
+                    "segment_min": 3, "segment_max": 15,
+                    "duration_per_seg_min": 3, "duration_per_seg_max": 15,
+                    "total_duration_max": 1200,
+                    "text_min_len": 15, "text_max_len": 200,
+                    "min_keywords": 2, "duration_tolerance": 10,
+                },
+                "commerce": {
+                    "segment_min": 2, "segment_max": 6,
+                    "duration_per_seg_min": 3, "duration_per_seg_max": 12,
+                    "total_duration_max": 60,
+                    "text_min_len": 5, "text_max_len": 100,
+                    "min_keywords": 3, "duration_tolerance": 3,
+                },
+            },
+        },
     }
 
 

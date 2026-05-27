@@ -17,6 +17,7 @@ from core.models import Script
 from core.ai_planner import AIPlanner, CachedPlanner
 from core.downloader import Downloader
 from core.tts import preview_duration
+from core.qa import QAChecker, QASummary
 
 _log = logging.getLogger("ui.ai_plan")
 
@@ -99,6 +100,7 @@ class AIPlanDialog(QDialog):
         self._download_worker: DownloadWorker | None = None
         self._last_plan_click: float = 0
         self._editing = False
+        self._qa_summary: QASummary | None = None
 
         self._setup_ui()
 
@@ -178,6 +180,7 @@ class AIPlanDialog(QDialog):
         self.result_tabs = QTabWidget()
         self.result_tabs.addTab(self._setup_script_tab(), "脚本编辑")
         self.result_tabs.addTab(self._setup_preview_tab(), "脚本预览")
+        self.result_tabs.addTab(self._setup_qa_tab(), "内容检查")
         self.result_tabs.setVisible(False)
         layout.addWidget(self.result_tabs, 1)
 
@@ -287,6 +290,64 @@ class AIPlanDialog(QDialog):
 
         return tab
 
+    def _setup_qa_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        self.qa_summary_label = QLabel("点击「AI 规划」生成脚本后自动检查")
+        self.qa_summary_label.setStyleSheet("color: #a6adc8; font-size: 14px; font-weight: bold;")
+        layout.addWidget(self.qa_summary_label)
+
+        self.qa_table = QTableWidget(0, 4)
+        self.qa_table.setHorizontalHeaderLabels(["检查项", "状态", "说明", "段落"])
+        self.qa_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.qa_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.qa_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.qa_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.qa_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.qa_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.qa_table.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
+        self.qa_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.qa_table, 1)
+
+        self.qa_rerun_btn = QPushButton("重新检查")
+        self.qa_rerun_btn.setEnabled(False)
+        self.qa_rerun_btn.clicked.connect(self._run_qa_check)
+        layout.addWidget(self.qa_rerun_btn)
+
+        return tab
+
+    def _run_qa_check(self):
+        if not self._script:
+            return
+        config = get_config()
+        checker = QAChecker(config)
+        summary = checker.check(self._script)
+        self._qa_summary = summary
+        self._populate_qa_table(summary)
+
+    def _populate_qa_table(self, summary: QASummary):
+        self.qa_table.setRowCount(0)
+        status_map = {"pass": "✅ 通过", "warn": "⚠️ 警告", "fail": "❌ 失败"}
+        color_map = {"pass": "#a6e3a1", "warn": "#f9e2af", "fail": "#f38ba8"}
+        for r in summary.results:
+            row = self.qa_table.rowCount()
+            self.qa_table.insertRow(row)
+            self.qa_table.setItem(row, 0, QTableWidgetItem(r.name))
+            status_text = status_map.get(r.status, r.status)
+            status_item = QTableWidgetItem(status_text)
+            status_item.setForeground(QBrush(QColor(color_map.get(r.status, "#cdd6f4"))))
+            self.qa_table.setItem(row, 1, status_item)
+            self.qa_table.setItem(row, 2, QTableWidgetItem(r.message))
+            self.qa_table.setItem(row, 3, QTableWidgetItem(str(r.segment_id) if r.segment_id else ""))
+        self.qa_summary_label.setText(
+            f"质检结果: 通过 {summary.passed}/{summary.total}  "
+            + (f"警告 {summary.warnings}  " if summary.warnings else "")
+            + (f"失败 {summary.failures}" if summary.failures else "")
+        )
+
     def _on_style_changed(self, text: str):
         self._style_desc_label.setText(self.style_label_map.get(text, ""))
 
@@ -367,6 +428,7 @@ class AIPlanDialog(QDialog):
             self._estimate_tts_durations()
             self._display_script(self._script)
             self._update_version_selector()
+            self._run_qa_check()
 
             q_count = len(self._search_queries)
             status = f"规划成功！共 {len(self._script.segments)} 个分段，{q_count} 个搜索关键词。"
@@ -377,6 +439,7 @@ class AIPlanDialog(QDialog):
             self.save_btn.setEnabled(True)
             self.refine_btn.setEnabled(True)
             self.replan_btn.setEnabled(True)
+            self.qa_rerun_btn.setEnabled(True)
         else:
             self.status_label.setText("规划失败：未生成有效脚本。")
             self.progress_bar.setValue(0)
