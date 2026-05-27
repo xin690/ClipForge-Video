@@ -4,6 +4,14 @@ from core.database import Database
 from core.models import Asset
 
 
+STYLE_WEIGHTS: dict[str, dict[str, float]] = {
+    "knowledge":     {"keyword": 0.60, "emotion": 0.20, "diversity": 0.20},
+    "news":          {"keyword": 0.50, "emotion": 0.30, "diversity": 0.20},
+    "entertainment": {"keyword": 0.30, "emotion": 0.50, "diversity": 0.20},
+    "commerce":      {"keyword": 0.30, "emotion": 0.30, "diversity": 0.40},
+}
+
+
 TONE_MAP: dict[str, set[str]] = {
     "normal": {"neutral", "natural", "daily", "indoor"},
     "strong": {"dynamic", "contrast", "bold", "bright", "red", "orange"},
@@ -29,6 +37,7 @@ class Matcher:
         asset_type: str = "video",
         emotion: str = "normal",
         prev_asset: Optional[Asset] = None,
+        style: str = "knowledge",
     ) -> list[tuple[Asset, float]]:
         all_keywords = self._extract_keywords(text, keywords)
         if not all_keywords:
@@ -36,6 +45,7 @@ class Matcher:
 
         candidates = self.db.search_assets(type_filter=asset_type, limit=100)
         scored: list[tuple[Asset, float]] = []
+        w = STYLE_WEIGHTS.get(style, STYLE_WEIGHTS["knowledge"])
 
         for asset in candidates:
             kw_score = self._keyword_score(asset, all_keywords)
@@ -43,7 +53,7 @@ class Matcher:
                 continue
             tone_score = self._emotion_tone_score(asset, emotion)
             div_score = self._diversity_score(asset, prev_asset, all_keywords)
-            total = kw_score * 50.0 + tone_score * 30.0 + div_score * 20.0
+            total = kw_score * w["keyword"] * 100.0 + tone_score * w["emotion"] * 100.0 + div_score * w["diversity"] * 100.0
             scored.append((asset, total))
 
         scored.sort(key=lambda x: x[1], reverse=True)

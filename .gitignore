@@ -10,6 +10,7 @@ venv/
 cache/
 database/*.db
 output/
+scripts/
 
 # Build
 dist/
@@ -29,6 +30,9 @@ assets/
 # OS
 Thumbs.db
 .DS_Store
+
+# Test artifacts
+test_thumb.jpg
 
 # Config (may contain local paths/secrets)
 config.yaml

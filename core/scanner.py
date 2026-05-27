@@ -9,6 +9,13 @@ from core.models import Asset
 
 STOP_WORDS = {"的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己", "这", "他", "她", "它", "们"}
 
+ENGLISH_STOP_WORDS = {
+    "the", "a", "an", "is", "are", "was", "were", "be", "been",
+    "at", "to", "in", "on", "for", "of", "by", "with", "and",
+    "or", "not", "this", "that", "it", "its", "as", "but",
+    "from", "into", "via", "per",
+}
+
 SUPPORTED_EXTENSIONS = {
     "video": {".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv"},
     "image": {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"},
@@ -28,7 +35,19 @@ def _classify_file(ext: str) -> str:
 def _extract_tags_from_name(filename: str) -> list[str]:
     name = Path(filename).stem
     parts = re.split(r"[-_\s]+", name)
-    tags = [p for p in parts if p and p.lower() not in STOP_WORDS and len(p) > 1]
+    tags = []
+    for p in parts:
+        if not p:
+            continue
+        p_lower = p.lower()
+        if len(p) <= 1:
+            continue
+        if p_lower.isdigit():
+            continue
+        if p_lower in STOP_WORDS or p_lower in ENGLISH_STOP_WORDS:
+            continue
+        if re.match(r'^[a-z]{2,}$', p_lower) or re.match(r'^[\u4e00-\u9fff]+$', p):
+            tags.append(p)
     return tags
 
 
@@ -143,7 +162,8 @@ class AssetScanner:
 
         parent_dir = Path(full_path).parent.name
         if parent_dir and parent_dir not in {"videos", "images", "bgm", "voice"}:
-            tags.append(parent_dir)
+            if parent_dir not in tags:
+                tags.append(parent_dir)
 
         tags = list(dict.fromkeys(tags))
 

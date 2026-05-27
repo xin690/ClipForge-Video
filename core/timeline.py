@@ -41,6 +41,7 @@ class TimelineBuilder:
             top_k=1,
             emotion=seg.emotion,
             prev_asset=prev_seg,
+            style=script.style,
         )
         matched_asset = assets[0][0] if assets else None
         self._last_asset = matched_asset

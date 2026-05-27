@@ -40,15 +40,8 @@ ai:
   provider: openai
   api_key: ""
   model: gpt-4o-mini
-  max_tokens: 500
   max_versions: 2
   critique_enabled: true
-  token_guard:
-    max_per_session: 4000
-    warning_at: 0.7
-    cache_ttl_critique: 3600
-    cache_ttl_plan: 604800
-    debounce_seconds: 3.0
 
 qa:
   preset: tiktok

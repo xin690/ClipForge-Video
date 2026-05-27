@@ -65,13 +65,12 @@ class TestAIPlannerDisabled:
 class TestAIPlannerInit:
     def test_default_config(self):
         planner = AIPlanner({
-            "ai": {"enabled": True, "provider": "deepseek", "api_key": "sk-test", "model": "deepseek-chat", "max_tokens": 1000}
+            "ai": {"enabled": True, "provider": "deepseek", "api_key": "sk-test", "model": "deepseek-chat"}
         })
         assert planner.enabled is True
         assert planner.provider == "deepseek"
         assert planner.api_key == "sk-test"
         assert planner.model == "deepseek-chat"
-        assert planner.max_tokens == 1000
 
     def test_missing_config_uses_defaults(self):
         planner = AIPlanner({})
