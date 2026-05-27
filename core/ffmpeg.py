@@ -309,12 +309,38 @@ def get_clip_duration(clip_path: str, ffmpeg_path: str = "ffmpeg") -> float:
     return 0.0
 
 
+XFADE_MAP: dict[str, str] = {
+    "dissolve":   "dissolve",
+    "fade":       "fade",
+    "fadeblack":  "fadeblack",
+    "fadewhite":  "fadewhite",
+    "circleopen": "circleopen",
+    "circleclose":"circleclose",
+    "radial":     "radial",
+    "zoomin":     "zoomin",
+    "slide":      "slideleft",
+    "smoothleft": "smoothleft",
+    "pixelize":   "pixelize",
+    "horzopen":   "horzopen",
+    "vertopen":   "vertopen",
+}
+
+XFADE_DURATION: dict[str, float] = {
+    "cut": 0.0, "fade": 0.4, "fadeblack": 0.5, "fadewhite": 0.5,
+    "dissolve": 0.5, "circleopen": 0.6, "circleclose": 0.6,
+    "radial": 0.5, "zoomin": 0.5, "slide": 0.5,
+    "smoothleft": 0.4, "pixelize": 0.6, "horzopen": 0.5, "vertopen": 0.5,
+}
+
+DEFAULT_TRANS_DURATION = 0.5
+
+
 def concat_with_xfade(
     clip_files: list[str],
     output_path: str,
     transitions: list[str] | None = None,
     ffmpeg_path: str = "ffmpeg",
-    trans_duration: float = 0.5,
+    trans_duration: float | None = None,
 ) -> tuple[bool, str]:
     """
     Concatenate video clips with xfade transitions between them.
@@ -322,7 +348,9 @@ def concat_with_xfade(
     For N clips, transitions[i] (0 <= i < N-1) is the transition type
     between clip_files[i] and clip_files[i+1].
 
-    Supported transitions: cut, fade, slide
+    Supported transitions: cut, dissolve, fade, fadeblack, fadewhite,
+    circleopen, circleclose, radial, zoomin, slide, smoothleft,
+    pixelize, horzopen, vertopen.
     """
     n = len(clip_files)
     if n < 2:
@@ -338,8 +366,6 @@ def concat_with_xfade(
             return False, f"无法获取片段时长: {clip}"
         durations.append(d)
 
-    xfade_map = {"fade": "fade", "slide": "slideleft", "cut": "fade"}
-
     v_filters: list[str] = []
     a_filters: list[str] = []
     prev_v = "0:v"
@@ -347,14 +373,22 @@ def concat_with_xfade(
 
     for i in range(1, n):
         t_type = transitions[i - 1] if i - 1 < len(transitions) else "fade"
-        xf = xfade_map.get(t_type, "fade")
-        dur = 0.0 if t_type == "cut" else trans_duration
+        xf = XFADE_MAP.get(t_type, "fade")
+        dur = (trans_duration if trans_duration is not None
+               else XFADE_DURATION.get(t_type, DEFAULT_TRANS_DURATION))
         offset = sum(durations[:i])
         if t_type != "cut":
-            offset -= trans_duration
+            offset -= dur
         cur_v = f"v{i}"
         cur_a = f"a{i}"
-        v_filters.append(f"[{prev_v}][{i}:v]xfade=transition={xf}:duration={dur}:offset={offset}[{cur_v}]")
+        if t_type != "cut":
+            v_filters.append(
+                f"[{prev_v}][{i}:v]xfade=transition={xf}:duration={dur}:offset={offset}[{cur_v}]"
+            )
+        else:
+            v_filters.append(
+                f"[{prev_v}][{i}:v]concat=n=2:v=1:a=0[{cur_v}]"
+            )
         a_filters.append(f"[{prev_a}][{i}:a]acrossfade=d={dur}[{cur_a}]")
         prev_v = cur_v
         prev_a = cur_a

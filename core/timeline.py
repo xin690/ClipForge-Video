@@ -18,8 +18,9 @@ class TimelineBuilder:
         items: list[TimelineItem] = []
         current_time = 0.0
 
-        for seg in script.segments:
-            item = self._build_item(seg, script, current_time)
+        for i, seg in enumerate(script.segments):
+            prev_emotion = script.segments[i - 1].emotion if i > 0 else None
+            item = self._build_item(seg, script, current_time, prev_emotion)
             items.append(item)
             current_time = item.end
 
@@ -29,7 +30,8 @@ class TimelineBuilder:
             fps=fps,
         )
 
-    def _build_item(self, seg: Segment, script: Script, start_time: float) -> TimelineItem:
+    def _build_item(self, seg: Segment, script: Script, start_time: float,
+                    prev_emotion: str | None = None) -> TimelineItem:
         assets = self.matcher.match(
             text=seg.text,
             keywords=seg.keywords,
@@ -42,6 +44,8 @@ class TimelineBuilder:
             "duration": seg.duration,
             "style": script.style,
         }
+        if prev_emotion is not None:
+            rule_ctx["prev_emotion"] = prev_emotion
         rule_result = self.rules.execute(rule_ctx)
 
         duration = rule_result.get("adjusted_duration", seg.duration)
@@ -84,5 +88,15 @@ class TimelineValidator:
             w, h = timeline.resolution
             if w <= 0 or h <= 0:
                 errors.append(f"分辨率无效: {w}x{h}")
+
+        total_dur = timeline.timeline[-1].end if timeline.timeline else 0
+        voice_count = sum(1 for it in timeline.timeline
+                          if hasattr(it, 'voice_file') and it.voice_file)
+        if voice_count > 60:
+            errors.append(
+                f"配音段落数 {voice_count} 超过上限 60（FFmpeg amix 限制），请合并短段落"
+            )
+        if total_dur > 3600:
+            errors.append(f"视频总时长 {total_dur:.0f}s 超过上限 3600 秒")
 
         return errors

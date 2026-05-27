@@ -35,12 +35,12 @@ class TestRules:
         assert result["transition"] == "cut"
 
     def test_transition_fade(self, engine):
-        result = engine.execute({"duration": 5})
+        result = engine.execute({"duration": 5, "emotion": "normal"})
         assert result["transition"] == "fade"
 
-    def test_transition_slide(self, engine):
-        result = engine.execute({"duration": 10})
-        assert result["transition"] == "slide"
+    def test_transition_emotion_pair(self, engine):
+        result = engine.execute({"duration": 5, "prev_emotion": "strong", "emotion": "strong"})
+        assert result["transition"] == "circleopen"
 
     def test_camera_knowledge(self, engine):
         result = engine.execute({"style": "knowledge"})

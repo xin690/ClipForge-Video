@@ -17,6 +17,13 @@ from core.ffmpeg import (
 
 log = logging.getLogger("renderer")
 
+COLOR_PRESETS: dict[str, str] = {
+    "knowledge":     "eq=brightness=0.03:contrast=1.10:saturation=1.05,vignette=PI/4",
+    "news":          "eq=brightness=0.05:contrast=1.15:saturation=0.90,vignette=PI/5",
+    "entertainment": "eq=brightness=0.04:contrast=1.05:saturation=1.20,vibrance=intensity=0.3",
+    "commerce":      "vibrance=intensity=0.3,eq=contrast=1.10,vignette=PI/4.5",
+}
+
 try:
     from PIL import Image, ImageDraw, ImageFont
     _HAS_PILLOW = True
@@ -49,6 +56,7 @@ class Renderer:
         bgm_file: Optional[str] = None,
         progress_callback: Optional[Callable[[float], None]] = None,
         cancel_event: Optional[threading.Event] = None,
+        style: Optional[str] = None,
     ) -> str:
         if not check_ffmpeg():
             raise RuntimeError("FFmpeg 未安装或未加入 PATH")
@@ -56,6 +64,19 @@ class Renderer:
         total_duration = timeline.timeline[-1].end if timeline.timeline else 0
         if total_duration <= 0:
             raise ValueError("Timeline 总时长为 0")
+
+        voice_entries = sum(1 for item in timeline.timeline
+                            if hasattr(item, 'voice_file') and item.voice_file)
+        if voice_entries > 60:
+            raise RuntimeError(
+                f"配音段落数 {voice_entries} 超过上限（60 段），"
+                f"FFmpeg amix 滤镜最多同时处理 64 路音频。"
+                f"请合并短段落后重试。"
+            )
+        if total_duration > 3600:
+            raise ValueError(
+                f"视频总时长 {total_duration:.0f}s 超过上限 3600 秒（1 小时）。"
+            )
 
         self._report(progress_callback, 0.0, "准备渲染...")
         self._cancel_event = cancel_event
@@ -67,7 +88,8 @@ class Renderer:
         temp_workspace = Path(tempfile.mkdtemp(dir=str(self.temp_dir)))
         try:
             log.info("开始渲染: %s", output_path)
-            clip_files = self._render_clips(timeline, assets_dir, str(temp_workspace), total_duration, progress_callback)
+            clip_files = self._render_clips(timeline, assets_dir, str(temp_workspace),
+                                            total_duration, progress_callback, style)
             if not clip_files:
                 raise RuntimeError("没有成功渲染的镜头")
             log.info("镜头渲染完成: %d 个", len(clip_files))
@@ -208,6 +230,7 @@ class Renderer:
         workspace: str,
         total_duration: float,
         progress_callback: Optional[Callable[[float], None]] = None,
+        style: Optional[str] = None,
     ) -> list[str]:
         clip_files: list[str] = []
         w, h = self.resolution
@@ -222,7 +245,7 @@ class Renderer:
                      asset_path or "N/A", bool(asset_path))
             ok = False
             if asset_path and os.path.exists(asset_path):
-                ok = self._render_clip_with_asset(asset_path, item_duration, out_path, w, h, item.camera)
+                ok = self._render_clip_with_asset(asset_path, item_duration, out_path, w, h, item.camera, style)
                 if not ok:
                     log.warning("镜头 %d: 素材渲染失败 %s，回退到占位符", i, asset_path)
             if not ok:
@@ -257,8 +280,11 @@ class Renderer:
             return f"{base},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"
 
     def _render_clip_with_asset(self, asset_path: str, duration: float, out_path: str, w: int, h: int,
-                                 camera: str = "static") -> bool:
+                                 camera: str = "static", style: Optional[str] = None) -> bool:
         vf = self._build_camera_filter(camera, w, h)
+        grade = COLOR_PRESETS.get(style or "", "")
+        if grade:
+            vf = f"{vf},{grade}"
         vf_full = f"fps={self.fps},{vf},format=yuv420p,setsar=1"
         is_image = asset_path.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".webp"))
         cmd = [self.ffmpeg_path, "-y"]
@@ -544,7 +570,10 @@ class Renderer:
             "-i", voice_path,
             "-i", bgm_path,
             "-filter_complex",
-            f"[1:a]volume={bgm_volume}[bgm];[0:a][bgm]amix=inputs=2:duration=longest[a]",
+            f"[1:a]volume={bgm_volume}[bgm];"
+            f"[0:a]asplit=2[voice][sidechain];"
+            f"[bgm][sidechain]sidechaincompress=threshold=-34dB:ratio=12:attack=0.002:release=0.5[bgm_ducked];"
+            f"[voice][bgm_ducked]amix=inputs=2:duration=longest[a]",
             "-map", "[a]",
             "-c:a", "pcm_s16le",
             out_path,

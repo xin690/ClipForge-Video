@@ -55,14 +55,32 @@ class TransitionRule(Rule):
     name = "transition"
     priority = 8
 
+    EMOTION_TRANSITIONS: dict[tuple[str, str], str] = {
+        ("normal", "normal"):     "dissolve",
+        ("normal", "strong"):     "fade",
+        ("normal", "calm"):       "fadeblack",
+        ("strong", "strong"):     "circleopen",
+        ("strong", "calm"):       "fade",
+        ("calm", "normal"):       "fadewhite",
+        ("calm", "calm"):         "dissolve",
+        ("strong", "normal"):     "dissolve",
+        ("calm", "strong"):       "fade",
+    }
+
     def apply(self, ctx: dict) -> dict:
         duration = ctx.get("duration", 5)
         if duration <= 3:
             return {"transition": "cut"}
-        elif duration <= 8:
-            return {"transition": "fade"}
+
+        prev = ctx.get("prev_emotion")
+        cur = ctx.get("emotion", "normal")
+        if prev and (prev, cur) in self.EMOTION_TRANSITIONS:
+            trans = self.EMOTION_TRANSITIONS[(prev, cur)]
+        elif prev:
+            trans = "dissolve"
         else:
-            return {"transition": "slide"}
+            trans = "fade"
+        return {"transition": trans}
 
 
 class CameraRule(Rule):

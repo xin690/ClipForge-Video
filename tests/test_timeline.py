@@ -84,7 +84,7 @@ class TestTimelineBuilder:
         )
         timeline = builder.build(script)
         assert timeline.timeline[0].transition == "cut"
-        assert timeline.timeline[1].transition == "slide"
+        assert timeline.timeline[1].transition == "dissolve"
 
 
 class TestTimelineValidator:

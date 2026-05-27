@@ -58,6 +58,27 @@ class Pipeline:
         self._cancelled = False
         self._cancel_event = threading.Event()
 
+    def _validate_script(self, script: Script):
+        voice_segments = [s for s in script.segments if s.text.strip()]
+        if len(voice_segments) > 60:
+            raise PipelineError(
+                PipelineStep.LOAD_SCRIPT,
+                f"配音段落数 {len(voice_segments)} 超过上限（60 段），"
+                f"FFmpeg amix 滤镜最多处理 64 路音频输入。"
+                f"请合并短段落或将部分段落设为无配音。"
+            )
+        if script.duration > 600:
+            self.logger.warning(
+                f"脚本总时长 {script.duration}s 超过 10 分钟，"
+                f"长视频可能导致渲染超时或性能问题。建议将时长控制在 600 秒以内。"
+            )
+        for seg in script.segments:
+            if seg.duration > 60:
+                raise PipelineError(
+                    PipelineStep.LOAD_SCRIPT,
+                    f"分段 {seg.id} 时长 {seg.duration}s 超过上限 60s。"
+                )
+
     def run(
         self,
         script_path: str,
@@ -89,6 +110,8 @@ class Pipeline:
                 script_data = json.load(f)
             script = Script(**script_data)
             self.logger.info(f"脚本加载成功: {script.title} ({len(script.segments)} 分段)")
+
+            self._validate_script(script)
 
             if self._cancelled:
                 raise PipelineError(PipelineStep.LOAD_SCRIPT, "用户取消")
@@ -221,6 +244,7 @@ class Pipeline:
                 bgm_file=bgm_path,
                 progress_callback=render_progress,
                 cancel_event=self._cancel_event,
+                style=script.style,
             )
             self.logger.info(f"渲染完成: {result_path}")
 
