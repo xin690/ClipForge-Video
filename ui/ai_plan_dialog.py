@@ -6,7 +6,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit,
     QLabel, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QMessageBox, QProgressBar, QGroupBox, QFormLayout,
+    QMessageBox, QProgressBar, QGroupBox, QFormLayout, QSpinBox,
     QSplitter, QWidget, QTabWidget, QTextBrowser,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
