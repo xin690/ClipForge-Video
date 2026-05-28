@@ -14,6 +14,7 @@ from core.ffmpeg import (
     concat_with_xfade, normalize_audio_loudnorm, get_clip_duration,
     check_ffmpeg, has_libass, _decode_ffmpeg,
 )
+from core.color import get_emotion_grade, get_lut_filter, get_zoom_speed, get_max_zoom
 
 log = logging.getLogger("renderer")
 
@@ -57,9 +58,12 @@ class Renderer:
         progress_callback: Optional[Callable[[float], None]] = None,
         cancel_event: Optional[threading.Event] = None,
         style: Optional[str] = None,
+        beat_times: list[float] | None = None,
     ) -> str:
         if not check_ffmpeg():
             raise RuntimeError("FFmpeg 未安装或未加入 PATH")
+
+        self._beat_times = beat_times or []
 
         total_duration = timeline.timeline[-1].end if timeline.timeline else 0
         if total_duration <= 0:
@@ -97,6 +101,8 @@ class Renderer:
 
             concat_path = str(temp_workspace / "_concat.mp4")
             transitions = [item.transition for item in timeline.timeline]
+            if self._beat_times:
+                transitions = self._beat_aware_transitions(transitions, timeline)
             valid_trans = transitions[:-1] if len(transitions) > 1 else []
             has_transitions = any(t != "cut" for t in valid_trans)
             clips_have_audio = any(self._has_audio_stream(p) for p in clip_files)
@@ -245,7 +251,8 @@ class Renderer:
                      asset_path or "N/A", bool(asset_path))
             ok = False
             if asset_path and os.path.exists(asset_path):
-                ok = self._render_clip_with_asset(asset_path, item_duration, out_path, w, h, item.camera, style)
+                ok = self._render_clip_with_asset(asset_path, item_duration, out_path, w, h, item.camera, style,
+                                                     item.emotion)
                 if not ok:
                     log.warning("镜头 %d: 素材渲染失败 %s，回退到占位符", i, asset_path)
             if not ok:
@@ -270,21 +277,45 @@ class Renderer:
 
         return clip_files
 
+    @staticmethod
+    def _beat_aware_transitions(transitions: list[str], timeline: Timeline) -> list[str]:
+        from core.rhythm import RhythmAnalyzer
+        from core.config import get as _cfg_get
+        strong_trans = _cfg_get("visual.strong_beat_transition", "circleopen")
+        weak_trans = _cfg_get("visual.weak_beat_transition", "dissolve")
+        result = list(transitions)
+        for i in range(min(len(result), len(timeline.timeline))):
+            beat_idx = i % 4
+            if RhythmAnalyzer.is_strong_beat(beat_idx):
+                result[i] = strong_trans
+            else:
+                result[i] = weak_trans
+        return result
+
     def _build_camera_filter(self, camera: str, w: int, h: int) -> str:
         base = f"scale={w}:{h}:force_original_aspect_ratio=decrease"
         if camera == "slow_zoom":
-            return f"{base},zoompan=z='min(zoom+0.0015,1.5)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps={self.fps}"
+            zoom_speed = get_zoom_speed()
+            max_zoom = get_max_zoom()
+            return f"{base},zoompan=z='min(zoom+{zoom_speed},{max_zoom})':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps={self.fps}"
         elif camera == "pan":
             return f"{base},crop={w}:{h}:'min((iw-{w})*t/{self.fps},{iw-w})':0"
         else:
             return f"{base},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2"
 
     def _render_clip_with_asset(self, asset_path: str, duration: float, out_path: str, w: int, h: int,
-                                 camera: str = "static", style: Optional[str] = None) -> bool:
+                                 camera: str = "static", style: Optional[str] = None,
+                                 emotion: Optional[str] = None) -> bool:
         vf = self._build_camera_filter(camera, w, h)
         grade = COLOR_PRESETS.get(style or "", "")
         if grade:
             vf = f"{vf},{grade}"
+        emotion_grade = get_emotion_grade(emotion or "")
+        if emotion_grade:
+            vf = f"{vf},{emotion_grade}"
+        lut = get_lut_filter()
+        if lut:
+            vf = f"{vf},{lut}"
         vf_full = f"fps={self.fps},{vf},format=yuv420p,setsar=1"
         is_image = asset_path.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".webp"))
         cmd = [self.ffmpeg_path, "-y"]

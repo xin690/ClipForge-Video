@@ -3,6 +3,7 @@ from typing import Optional
 from core.database import Database
 from core.models import Asset
 from core.synonyms import SynonymEngine
+from core.config import get as _config_get
 
 
 STYLE_WEIGHTS: dict[str, dict[str, float]] = {
@@ -46,6 +47,16 @@ class Matcher:
         if not all_keywords:
             return []
 
+        keyword_expand = _config_get("visual.semantic.keyword_expand_from_text", True)
+        expanded_kw: list[str] = []
+        if keyword_expand and text:
+            from core.semantic import extract_keywords_from_text
+            extra_kw = extract_keywords_from_text(text)
+            expanded_kw = [k for k in extra_kw if k not in all_keywords]
+
+        from core.semantic import get_category_tags, category_match_score
+        category_tags = get_category_tags(style, emotion)
+
         candidates = self.db.search_assets(type_filter=asset_type, limit=100)
         scored: list[tuple[Asset, float]] = []
         w = STYLE_WEIGHTS.get(style, STYLE_WEIGHTS["knowledge"])
@@ -56,7 +67,13 @@ class Matcher:
                 continue
             tone_score = self._emotion_tone_score(asset, emotion)
             div_score = self._diversity_score(asset, prev_asset, all_keywords)
-            total = kw_score * w["keyword"] * 100.0 + tone_score * w["emotion"] * 100.0 + div_score * w["diversity"] * 100.0
+            cat_score = category_match_score(asset.tags, category_tags)
+            expand_score = self._keyword_score(asset, expanded_kw) if expanded_kw else 0.0
+            total = (kw_score * w["keyword"] * 100.0
+                     + tone_score * w["emotion"] * 100.0
+                     + div_score * w["diversity"] * 100.0
+                     + cat_score * 20.0
+                     + expand_score * 10.0)
             scored.append((asset, total))
 
         scored.sort(key=lambda x: x[1], reverse=True)

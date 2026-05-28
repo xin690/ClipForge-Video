@@ -89,5 +89,28 @@ downloader:
 bgm:
   volume: 0.3
 
+visual:
+  beat_sync: false
+  beat_sync_method: librosa
+  beat_detection_sensitivity: 0.8
+  strong_beat_transition: circleopen
+  weak_beat_transition: dissolve
+  transition_duration: 0.4
+  color:
+    enable_emotion_grading: true
+    lut_path: ""
+    vibrance: 0.3
+  camera:
+    zoom_speed: 0.0015
+    max_zoom: 1.5
+    pan_speed: 0.2
+  semantic:
+    min_confidence: 0.3
+    warn_below: 0.5
+    keyword_expand_from_text: true
+
+scanner:
+  content_analysis: false
+
 logging:
   level: INFO

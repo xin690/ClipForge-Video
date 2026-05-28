@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 from core.database import Database
 from core.models import Asset
+from core.config import get as _config_get
 
 
 STOP_WORDS = {"的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己", "这", "他", "她", "它", "们"}
@@ -142,6 +143,20 @@ class AssetScanner:
                         count += 1
         return count
 
+    @staticmethod
+    def _run_content_analysis(full_path: str, asset_type: str) -> list[str]:
+        from core.analyzer import ContentAnalyzer
+        try:
+            if asset_type == "video":
+                return ContentAnalyzer.analyze_video(full_path)
+            elif asset_type == "image":
+                return ContentAnalyzer.analyze_image(full_path)
+            elif asset_type == "bgm":
+                return ContentAnalyzer.analyze_bgm(full_path)
+        except Exception:
+            pass
+        return []
+
     def remove_deleted(self) -> int:
         deleted = 0
         type_dir_map = {"video": "videos", "image": "images", "bgm": "bgm", "voice": "voice"}
@@ -166,6 +181,12 @@ class AssetScanner:
         if parent_dir and parent_dir not in {"videos", "images", "bgm", "voice"}:
             if parent_dir not in tags:
                 tags.append(parent_dir)
+
+        if _config_get("scanner.content_analysis", False):
+            content_tags = self._run_content_analysis(full_path, asset_type)
+            for tag in content_tags:
+                if tag not in tags:
+                    tags.append(tag)
 
         tags = list(dict.fromkeys(tags))
 

@@ -234,6 +234,17 @@ class Pipeline:
                                 bgm_path = os.path.join(root, all_bgm[0].file)
                                 break
 
+            from core.config import get as _pipeline_get
+            beat_times: list[float] = []
+            if (_pipeline_get("visual.beat_sync", False) and bgm_path
+                    and os.path.exists(bgm_path)):
+                try:
+                    from core.rhythm import RhythmAnalyzer
+                    beat_times = RhythmAnalyzer.get_beat_frames(bgm_path)
+                    self.logger.info(f"节拍检测: {len(beat_times)} 个节拍点, BGM={bgm_path}")
+                except Exception:
+                    beat_times = []
+
             result_path = renderer.render(
                 timeline=timeline,
                 output_path=output_path,
@@ -242,6 +253,7 @@ class Pipeline:
                 progress_callback=render_progress,
                 cancel_event=self._cancel_event,
                 style=script.style,
+                beat_times=beat_times,
             )
             self.logger.info(f"渲染完成: {result_path}")
 

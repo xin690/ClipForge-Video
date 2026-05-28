@@ -44,6 +44,7 @@ class TimelineItem(BaseModel):
     subtitle_animation: str = "none"
     subtitle_position: Optional[str] = None
     subtitle_margin_v: Optional[int] = None
+    emotion: str = "normal"
     camera: str = "static"
     voice_file: Optional[str] = None
     bgm_file: Optional[str] = None

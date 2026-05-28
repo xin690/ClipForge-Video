@@ -4,11 +4,15 @@ from typing import Optional
 
 
 ANIMATION_TAGS: dict[str, str] = {
-    "pulse":  "{\\t(0,300,\\fs44\\fs52)}",
-    "swing":  "{\\t(0,400,\\frz-5\\frz5)}",
-    "fadein": "{\\t(0,500,\\alpha&HFF&\\alpha&H00&)}",
-    "scale":  "{\\t(0,600,\\fscx105\\fscy105)}",
-    "typing": "{\\t(0,800,\\fscx0\\fscx100)}",
+    "pulse":    "{\\t(0,300,\\fs44\\fs52)}",
+    "swing":    "{\\t(0,400,\\frz-5\\frz5)}",
+    "fadein":   "{\\t(0,500,\\alpha&HFF&\\alpha&H00&)}",
+    "scale":    "{\\t(0,600,\\fscx105\\fscy105)}",
+    "typing":   "{\\t(0,800,\\fscx0\\fscx100)}",
+    "slide_up": "{\\t(0,400,\\pos($x,$y)\\pos($x,$y-40))}",
+    "typewriter": "{\\t(0,1000,\\clip(0,0,0,1080)\\clip(0,0,1920,1080))}",
+    "bounce":   "{\\t(0,300,\\fs36\\fs44)\\t(300,600,\\fs44\\fs36)\\t(600,800,\\fs36\\fs42)\\t(800,1000,\\fs42\\fs36)}",
+    "glow":     "{\\t(0,500,\\bord2\\bord6\\bord2)}",
 }
 
 POSITION_ALIGN: dict[str, int] = {

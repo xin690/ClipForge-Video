@@ -92,6 +92,32 @@ def _default_config() -> dict[str, Any]:
         },
         "downloader": {"provider": "pexels", "api_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
         "bgm": {"volume": 0.3},
+        "visual": {
+            "beat_sync": False,
+            "beat_sync_method": "librosa",
+            "beat_detection_sensitivity": 0.8,
+            "strong_beat_transition": "circleopen",
+            "weak_beat_transition": "dissolve",
+            "transition_duration": 0.4,
+            "color": {
+                "enable_emotion_grading": True,
+                "lut_path": "",
+                "vibrance": 0.3,
+            },
+            "camera": {
+                "zoom_speed": 0.0015,
+                "max_zoom": 1.5,
+                "pan_speed": 0.2,
+            },
+            "semantic": {
+                "min_confidence": 0.3,
+                "warn_below": 0.5,
+                "keyword_expand_from_text": True,
+            },
+        },
+        "scanner": {
+            "content_analysis": False,
+        },
         "logging": {"level": "INFO"},
         "qa": {
             "preset": "tiktok", "auto_checks": True,

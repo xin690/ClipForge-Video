@@ -178,3 +178,22 @@ class TestSubtitleFormat:
         assert POSITION_ALIGN["top_right"] == 9
         assert POSITION_ALIGN["middle_left"] == 4
         assert POSITION_ALIGN["middle_right"] == 6
+
+
+class TestAnimationTags:
+
+    def test_all_animations_are_tags(self):
+        from core.subtitle import ANIMATION_TAGS
+        for name in ["pulse", "swing", "fadein", "scale", "typing",
+                      "slide_up", "typewriter", "bounce", "glow"]:
+            assert name in ANIMATION_TAGS, f"Missing animation: {name}"
+
+    def test_new_animations_in_output(self, temp_dir):
+        import os
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        out = os.path.join(temp_dir, "anim_new.ass")
+        gen.generate_from_text([], out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "{\\t" in content or "Animation" in content or "Style" in content

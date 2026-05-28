@@ -74,6 +74,7 @@ class TimelineBuilder:
             subtitle_animation=sub_animation,
             subtitle_position=seg.subtitle_position,
             subtitle_margin_v=seg.subtitle_margin_v,
+            emotion=seg.emotion,
             camera=rule_result.get("camera", "static"),
         )
 

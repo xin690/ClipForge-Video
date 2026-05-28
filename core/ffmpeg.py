@@ -323,6 +323,24 @@ XFADE_MAP: dict[str, str] = {
     "pixelize":   "pixelize",
     "horzopen":   "horzopen",
     "vertopen":   "vertopen",
+    "fadegrays":  "fadegrays",
+    "wipedown":   "wipedown",
+    "wipeleft":   "wipeleft",
+    "wiperight":  "wiperight",
+    "wipeup":     "wipeup",
+    "coverleft":  "coverleft",
+    "coverup":    "coverup",
+    "coverright": "coverright",
+    "coverdown":  "coverdown",
+    "revealleft": "revealleft",
+    "revealup":   "revealup",
+    "revealright":"revealright",
+    "revealdown": "revealdown",
+    "hlslice":    "hlslice",
+    "hrslice":    "hrslice",
+    "vuslice":    "vuslice",
+    "vdslice":    "vdslice",
+    "rectcrop":   "rectcrop",
 }
 
 XFADE_DURATION: dict[str, float] = {
@@ -330,6 +348,12 @@ XFADE_DURATION: dict[str, float] = {
     "dissolve": 0.5, "circleopen": 0.6, "circleclose": 0.6,
     "radial": 0.5, "zoomin": 0.5, "slide": 0.5,
     "smoothleft": 0.4, "pixelize": 0.6, "horzopen": 0.5, "vertopen": 0.5,
+    "fadegrays": 0.5,
+    "wipedown": 0.4, "wipeleft": 0.4, "wiperight": 0.4, "wipeup": 0.4,
+    "coverleft": 0.5, "coverup": 0.5, "coverright": 0.5, "coverdown": 0.5,
+    "revealleft": 0.5, "revealup": 0.5, "revealright": 0.5, "revealdown": 0.5,
+    "hlslice": 0.4, "hrslice": 0.4, "vuslice": 0.4, "vdslice": 0.4,
+    "rectcrop": 0.5,
 }
 
 DEFAULT_TRANS_DURATION = 0.5
