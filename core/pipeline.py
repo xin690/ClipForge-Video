@@ -133,8 +133,6 @@ class Pipeline:
             self._report(progress_callback, PipelineStep.APPLY_RULES, 0.5, "应用规则...")
 
             self._report(progress_callback, PipelineStep.BUILD_TIMELINE, 0.0, "构建时间轴...")
-            for seg in script.segments:
-                seg.duration += 1
             timeline = timeline_builder.build(script)
             validator = TimelineValidator()
             errors = validator.validate(timeline)
