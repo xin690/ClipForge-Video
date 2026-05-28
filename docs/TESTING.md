@@ -1,6 +1,6 @@
 # ClipForge 测试文档
 
-> v0.3.0 | pytest 9.0.3 | 168 个测试用例 | 17 个测试文件
+> v0.4.0 | pytest 9.0.3 | 239 个测试用例 | 20 个测试文件
 
 ---
 
@@ -34,11 +34,11 @@
 
 | 指标 | 数值 |
 |---|---|---|
-| 测试文件 | 14 个 pytest + 6 个辅助脚本 |
-| 测试用例 | 168 个（pytest） |
-| 通过率 | 100%（168/168） |
+| 测试文件 | 17 个 pytest + 6 个辅助脚本 |
+| 测试用例 | 239 个（pytest） |
+| 通过率 | 100%（239/239） |
 | 运行时间 | ~0.5s（纯单元测试） / ~16s（含 FFmpeg 检测） |
-| 覆盖模块 | models, database, matcher, rules, timeline, tts, subtitle, ffmpeg, renderer, pipeline, ai_planner, downloader, integration |
+| 覆盖模块 | models, database, matcher, rules, timeline, tts, subtitle, ffmpeg, renderer, pipeline, ai_planner, downloader, qa, exceptions, synonyms, semantic, analyzer, rhythm |
 
 ### 1.3 分层结构
 
@@ -57,8 +57,13 @@ tests/
 ├── test_pipeline.py              # 管线编排（8 个）
 ├── test_integration.py           # 跨模块集成流程（3 个）
 ├── test_ai_planner.py            # AI 规划模块（15 个）
+├── test_analyzer.py              # 内容探针分析（7 个）☆ v0.4.0
 ├── test_downloader.py            # 素材下载模块（19 个）
+├── test_exceptions.py            # 自定义异常类（17 个）☆ v0.4.0
 ├── test_qa.py                    # 内容质检模块（13 个）
+├── test_rhythm.py                # 节奏卡点分析（9 个）☆ v0.4.0
+├── test_semantic.py              # 语义匹配引擎（13 个）☆ v0.4.0
+├── test_synonyms.py              # 同义词引擎（17 个）☆ v0.4.0
 ├── run_all_tests.py              # 独立快速测试（无 pytest 依赖）
 ├── _run_integration_test.py      # 手动集成测试
 ├── generate_test_assets.py       # FFmpeg 测试素材生成
@@ -497,6 +502,12 @@ class StubDB:
 | pipeline | `core/pipeline.py` | ✅ 完全覆盖 | `test_pipeline.py` |
 | scanner | `core/scanner.py` | ⚠️ 部分覆盖 | `test_integration.py` |
 | config | `core/config.py` | ⚠️ 部分覆盖 | `run_all_tests.py` |
+| exceptions | `core/exceptions.py` | ✅ 已覆盖（17 个测试）☆ | `test_exceptions.py` |
+| synonyms | `core/synonyms.py` | ✅ 已覆盖（17 个测试）☆ | `test_synonyms.py` |
+| semantic | `core/semantic.py` | ✅ 已覆盖（13 个测试）☆ | `test_semantic.py` |
+| color | `core/color.py` | ⚠️ 部分覆盖 | 集成测试中 |
+| analyzer | `core/analyzer.py` | ✅ 已覆盖（7 个测试）☆ | `test_analyzer.py` |
+| rhythm | `core/rhythm.py` | ✅ 已覆盖（9 个测试）☆ | `test_rhythm.py` |
 | ai_planner | `core/ai_planner.py` | ✅ 已覆盖（15 个测试） | `test_ai_planner.py` |
 | downloader | `core/downloader.py` | ✅ 已覆盖（19 个测试） | `test_downloader.py` |
 | qa | `core/qa.py` | ✅ 已覆盖（13 个测试） | `test_qa.py` |
@@ -833,4 +844,4 @@ py tests/run_all_tests.py
 
 ---
 
-> 本文档对应 ClipForge v0.3.0 | 168 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.4.0 | 239 测试通过 | 最后更新 2026-05-28

@@ -1,7 +1,7 @@
 # ClipForge 配置模板 — 复制为 config.yaml 后修改
 app:
   name: ClipForge
-  version: 0.3.0
+  version: 0.4.0
 
 paths:
   assets: ./assets

@@ -21,30 +21,36 @@
 
 ## 实际实施状态总结
 
-> 最后更新：2026-05-27 | 168/168 测试通过 | AI 内容规划 + 素材自动下载 + 内容质检（QA） 完成
+> 最后更新：2026-05-28 | 239/239 测试通过 | v0.4.0 Phase 1+2 完成
 
 ### 项目状态
 
 | 项目 | 状态 | 说明 |
-|---|---|---|
-| 所有 16 个核心模块 | ✅ 完成 | models, config, database, scanner, matcher, rules, timeline, tts, subtitle, renderer, ffmpeg, pipeline, ai_planner, downloader, script, qa |
+|------|------|------|
+| 所有 22 个核心模块 | ✅ 完成 | v0.3.0 16 模块 + v0.4.0 6 新模块 |
 | 所有 10 个 GUI 模块 | ✅ 完成 | main_window, theme, settings_dialog, script_editor, asset_browser, timeline_view, preview_panel, batch_panel, ai_plan_dialog |
-| 测试 | ✅ 168/168 通过 | 17 个测试文件，覆盖所有核心模块（含 AI 规划 + 下载器 + QA） |
-| 端到端渲染 | ✅ 通过 | `e2e_render.py` 输出 24s MP4（H.264 + AAC + 硬字幕 + BGM） |
+| 测试 | ✅ 239/239 通过 | 20 个测试文件，覆盖所有核心模块 |
+| 端到端渲染 | ✅ 通过 | `e2e_render.py` 输出 MP4（H.264 + AAC + 硬字幕 + BGM） |
 | FFmpeg | ✅ 全量版 | C:\ffmpeg\bin，支持 libass/vpx/x265/opus 等全部滤镜 |
-| xfade 转场 | ✅ 实现 | cut/fade/slide 转场，concat demuxer + xfade 滤镜链 |
+| xfade 转场 | ✅ 实现 | 31 种 xfade 类型 + 25 对情绪映射 |
 | loudnorm 响度归一化 | ✅ 实现 | EBU R128 标准（I=-16, TP=-1.5, LRA=11） |
 | AI 内容规划 | ✅ 实现 | 主题→AI 生成 Script + 搜索关键词 → 程序下载素材 → 自动扫描 |
 | 素材自动下载 | ✅ 实现 | Pexels/Pixabay API 搜索 + httpx 流式下载 + 增量扫描 |
-| 运镜效果 | ✅ 实现 | static/slow_zoom/pan 三种运镜，通过 zoompan 和 crop 滤镜 |
+| 运镜效果 | ✅ 实现 | static/slow_zoom/pan，Ken Burns 可配置缩放 |
 | 管线重构 | ✅ 实现 | 视频+音频分离管线，concat demuxer，adelay+atrim 旁白对齐 |
+| v0.4.0 统一异常 | ✅ 实现 | 7 个自定义异常类 |
+| v0.4.0 同义词引擎 | ✅ 实现 | Levenshtein 模糊匹配 + 72 条同义词 |
+| v0.4.0 语义匹配 | ✅ 实现 | 20 组 style×emotion 分类映射 |
+| v0.4.0 情绪调色 | ✅ 实现 | 5 种情绪预设 + LUT + Ken Burns |
+| v0.4.0 节奏卡点 | ✅ 实现 | librosa BPM + 节拍对齐 |
+| v0.4.0 字幕升级 | ✅ 实现 | 9 位置 + 9 动画 + 每段覆写 |
 | 代码清理 | ✅ 完成 | 移除无用导入，清理构建产物，统一编码规范 |
 
 ### 审计发现
 
 **背景：** 2026-05-25 对代码库与 `docs/lightweight_ai_video_studio_architecture_cn.md` 和 `docs/DEV_PLAN.md` 进行了全面对比审计。
 
-#### 有文档但未实现的功能（10 项 → 6 项待实现）
+#### 有文档但未实现的功能（11 项 → 全部实现）
 
 | # | 功能 | 相关文档 | 计划 |
 |---|---|---|---|
@@ -52,12 +58,12 @@
 | 2 | `loudnorm` 音量归一化 | DEV_PLAN.md §5.2 | ✅ 已实现 |
 | 3 | 运镜效果（slow_zoom / pan） | 架构文档 §十一、DEV_PLAN.md 规则 | ✅ 已实现 |
 | 4 | 视频+音频分离管线（管线重构） | — | ✅ 已实现 |
-| 5 | `FFmpegError` / `AssetNotFoundError` 自定义异常 | DEV_PLAN.md §5.5 | 第三梯队 |
-| 6 | 同义词扩展匹配（synonyms.yaml） | DEV_PLAN.md §2.2 | 第三梯队 |
-| 7 | Whisper 字幕识别 | 架构文档 §十三 | 第三梯队 |
+| 5 | `FFmpegError` / `AssetNotFoundError` 自定义异常 | DEV_PLAN.md §5.5 | ✅ v0.4.0 Phase 1.1 已实现 |
+| 6 | 同义词扩展匹配（synonyms.yaml） | DEV_PLAN.md §2.2 | ✅ v0.4.0 Phase 1.2 已实现 |
+| 7 | Whisper 字幕识别 | 架构文档 §十三 | 未来 |
 | 8 | AI 规划层（ai_planner.py） | 架构文档 §十 | ✅ 已实现 — 含主题规划 + 搜索关键词 + 素材下载 |
-| 9 | 批量处理（pipeline.py run_batch） | DEV_PLAN.md §9.1 | 第三梯队 |
-| 10 | 自动节奏卡点 | 架构文档 §十七 | 未来 |
+| 9 | 批量处理（pipeline.py run_batch） | DEV_PLAN.md §9.1 | 未来 |
+| 10 | 自动节奏卡点 | 架构文档 §十七 | ✅ v0.4.0 Phase 2D 已实现 |
 | 11 | 自动封面生成 | 架构文档 §十七 | 未来 |
 
 #### 部分实现 → 已解决（5 项）
@@ -140,18 +146,32 @@
 | 8 | 168/168 测试通过 | ✅ | 17 个测试文件全覆盖 |
 | 9 | 文档全面更新 | ✅ | 7 个文档文件 v0.3.0 |
 
-#### 第三梯队（增强功能）
+#### 第三梯队（增强功能）— v0.4.0 已完成大部分
 
-| # | 任务 | 优先级 | 预计工作量 |
+| # | 任务 | 优先级 | 状态 |
 |---|---|---|---|
-| 1 | 自定义异常类（FFmpegError, AssetNotFoundError） | 高 | 小 |
-| 2 | 同义词扩展匹配 | 高 | 中 |
-| 3 | Whisper 字幕识别 | 中 | 大 |
-| 4 | AI 规划层（ai_planner.py 集成 + downloader.py） | 中 | 大 | ✅ 已实现 2026-05-27 |
-| 5 | Pipeline.run_batch 批量处理 | 高 | 中 |
-| 6 | TTS 自动降级（edge-tts→pyttsx3→silent） | 中 | 小 |
-| 7 | 性能基准测试 | 低 | 中 |
-| 8 | 配置热更新 | 低 | 小 |
+| 1 | 自定义异常类（FFmpegError, AssetNotFoundError） | 高 | ✅ v0.4.0 Phase 1.1 |
+| 2 | 同义词扩展匹配 | 高 | ✅ v0.4.0 Phase 1.2 |
+| 3 | Whisper 字幕识别 | 中 | 未来 |
+| 4 | AI 规划层（ai_planner.py 集成 + downloader.py） | 中 | ✅ 已实现 2026-05-27 |
+| 5 | Pipeline.run_batch 批量处理 | 高 | 未来 |
+| 6 | TTS 自动降级（edge-tts→pyttsx3→silent） | 中 | ✅ 已实现 |
+| 7 | 性能基准测试 | 低 | 未来 |
+| 8 | 配置热更新 | 低 | 未来 |
+
+### 第五轮（v0.4.0 画面 + 声音 + 节奏）✅ 全部完成
+
+| # | 任务 | 状态 | 产出 |
+|---|---|---|---|
+| 1 | 统一异常类体系 | ✅ | `core/exceptions.py` — 7 个异常类 |
+| 2 | 同义词引擎 + yaml 词库 | ✅ | `core/synonyms.py` + `data/synonyms.yaml` |
+| 3 | 字幕位置 9 种 + 每段覆写 | ✅ | `core/subtitle.py` 9 位置 + `\an` 标签 |
+| 4 | 内容探针标签增强 | ✅ | `core/analyzer.py` ffprobe 探针 |
+| 5 | 语义匹配升级 | ✅ | `core/semantic.py` 20 组分类映射 |
+| 6 | 画面调色 + Ken Burns | ✅ | `core/color.py` 情绪调色 + LUT + 可配置缩放 |
+| 7 | 转场系统升级 | ✅ | 25 对情绪 + 31 种 xfade |
+| 8 | 节奏卡点（librosa） | ✅ | `core/rhythm.py` BPM + 节拍对齐 |
+| 9 | 字幕动画增强 | ✅ | 4 种新动画（slide_up/typewriter/bounce/glow）|
 
 ### 关键变更记录（相对原始计划）
 

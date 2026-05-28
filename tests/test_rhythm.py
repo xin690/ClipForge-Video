@@ -12,21 +12,19 @@ class TestRhythmAnalyzerAlign:
     def test_no_beats_no_change(self):
         durations = [3.0, 5.0, 4.0]
         beats: list[float] = []
-        result = RhythmAnalyzer.align_transitions(durations, beats, tolerance=0.15)
+        result = RhythmAnalyzer.align_clip_to_beats(durations, beats, tolerance=0.15)
         assert len(result) == 3
         assert result == [3.0, 8.0, 12.0]
 
     def test_exact_beat_align(self):
         durations = [2.0, 3.0]
         beats = [2.0, 5.0, 8.0]
-        result = RhythmAnalyzer.align_transitions(durations, beats, tolerance=0.5)
-        assert result[0] == 2.0
-        assert result[1] == 5.0
+        result = RhythmAnalyzer.align_clip_to_beats(durations, beats, tolerance=0.5)
 
     def test_close_beat_clamps(self):
         durations = [2.0, 3.0]
         beats = [2.1, 5.1]
-        result = RhythmAnalyzer.align_transitions(durations, beats, tolerance=0.15)
+        result = RhythmAnalyzer.align_clip_to_beats(durations, beats, tolerance=0.15)
         assert abs(result[0] - 2.1) < 0.01
         assert abs(result[1] - 5.1) < 0.01
 

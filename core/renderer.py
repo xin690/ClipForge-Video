@@ -277,15 +277,23 @@ class Renderer:
 
         return clip_files
 
-    @staticmethod
-    def _beat_aware_transitions(transitions: list[str], timeline: Timeline) -> list[str]:
+    def _beat_aware_transitions(self, transitions: list[str], timeline: Timeline) -> list[str]:
         from core.rhythm import RhythmAnalyzer
         from core.config import get as _cfg_get
         strong_trans = _cfg_get("visual.strong_beat_transition", "circleopen")
         weak_trans = _cfg_get("visual.weak_beat_transition", "dissolve")
+        beat_times = self._beat_times
         result = list(transitions)
-        for i in range(min(len(result), len(timeline.timeline))):
-            beat_idx = i % 4
+        items = timeline.timeline
+        for i in range(min(len(result), len(items))):
+            start_time = items[i].start
+            beat_idx = 0
+            best_dist = float("inf")
+            for j, bt in enumerate(beat_times):
+                dist = abs(bt - start_time)
+                if dist < best_dist:
+                    best_dist = dist
+                    beat_idx = j
             if RhythmAnalyzer.is_strong_beat(beat_idx):
                 result[i] = strong_trans
             else:

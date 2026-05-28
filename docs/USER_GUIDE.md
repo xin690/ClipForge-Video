@@ -1,8 +1,9 @@
 # ClipForge 用户手册
 
-> 轻量级 AI 视频自动剪辑引擎 | v0.3.0
+> 轻量级 AI 视频自动剪辑引擎 | v0.4.0
 > 适用平台：Windows 10/11
 > 中文完整版见：`docs/用户手册.md`
+> v0.4.0 新增：情绪调色 + 节拍卡点 + 30+ 转场 + 9 字幕动画 + 内容探针
 
 ---
 
@@ -210,6 +211,12 @@ ClipForge/
 │   ├── downloader.py        # 素材自动下载（Pexels/Pixabay）
 │   ├── qa.py                # 内容质检（脚本检查 + 导出预设）
 │   └── pipeline.py          # 完整工作流管线
+│   ├── exceptions.py        # ☆v0.4.0 统一异常类（7 个）
+│   ├── synonyms.py           # ☆v0.4.0 同义词引擎
+│   ├── semantic.py           # ☆v0.4.0 语义匹配映射
+│   ├── color.py              # ☆v0.4.0 情绪调色 + LUT
+│   ├── analyzer.py           # ☆v0.4.0 ffprobe 内容探针
+│   └── rhythm.py             # ☆v0.4.0 librosa 节拍检测
 │
 ├── ui/                      # PyQt6 图形界面
 │   ├── main_window.py       # 主窗口
@@ -529,4 +536,4 @@ dist/
 
 ---
 
-> 本文档对应 ClipForge v0.3.0 | 168 测试通过 | 最后更新 2026-05-27
+> 本文档对应 ClipForge v0.4.0 | 239 测试通过 | 最后更新 2026-05-28

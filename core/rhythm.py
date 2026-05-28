@@ -31,7 +31,8 @@ class RhythmAnalyzer:
         return [float(t) for t in beat_times]
 
     @staticmethod
-    def align_transitions(
+    @staticmethod
+    def align_clip_to_beats(
         segment_durations: list[float],
         beats: list[float],
         tolerance: float = 0.15,
