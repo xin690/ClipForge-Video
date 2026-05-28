@@ -138,7 +138,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for seg in segments:
             start, end, text, seg_style, animation = (None, None, "", "Default", "none")
             position = None
-            if len(seg) >= 6:
+            margin_v = 0
+            if len(seg) >= 7:
+                start, end, text, seg_style, animation, position, margin_v = seg[:7]
+            elif len(seg) >= 6:
                 start, end, text, seg_style, animation, position = seg[:6]
             elif len(seg) == 5:
                 start, end, text, seg_style, animation = seg[:5]
@@ -158,7 +161,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if target_align != style_align:
                     clean_text = f"{{\\an{target_align}}}{clean_text}"
             events.append(
-                f"Dialogue: 0,{self._time_str_ass(start)},{self._time_str_ass(end)},{seg_style},,0,0,0,,{clean_text}"
+                f"Dialogue: 0,{self._time_str_ass(start)},{self._time_str_ass(end)},{seg_style},,0,0,{margin_v},,{clean_text}"
             )
 
         return header + "\n".join(events)
@@ -197,6 +200,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     def _get_all_ass_styles(self) -> dict[str, str]:
         styles = dict(self.ALL_ASS_STYLES)
         sub_cfg = getattr(self, '_config', {}).get("subtitle", {})
+        margin_v = sub_cfg.get("margin_v", 10)
+        for name in list(styles.keys()):
+            parts = styles[name].split(",")
+            if len(parts) > 20:
+                parts[19] = str(margin_v)
+                styles[name] = ",".join(parts)
         if sub_cfg.get("font_family"):
             styles["custom"] = _build_style_string(
                 font=sub_cfg.get("font_family", "Microsoft YaHei"),
@@ -206,7 +215,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 outline=sub_cfg.get("outline", 2),
                 shadow=sub_cfg.get("shadow", 1),
                 position=sub_cfg.get("position", "bottom"),
-                margin_v=sub_cfg.get("margin_v", 10),
+                margin_v=margin_v,
             )
         return styles
 

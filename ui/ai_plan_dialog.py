@@ -147,13 +147,14 @@ class AIPlanDialog(QDialog):
 
         time_row = QHBoxLayout()
         self.target_duration_spin = QSpinBox()
-        self.target_duration_spin.setRange(0, 600)
+        self.target_duration_spin.setRange(0, 3600)
         self.target_duration_spin.setValue(0)
         self.target_duration_spin.setSuffix(" 秒")
+        self.target_duration_spin.setSingleStep(10)
         self.target_duration_spin.setSpecialValueText("不限制")
-        self.target_duration_spin.setFixedWidth(120)
+        self.target_duration_spin.setFixedWidth(180)
         time_row.addWidget(self.target_duration_spin)
-        time_row.addWidget(QLabel("（输入目标总时长，AI 将按此规划段数）"))
+        time_row.addWidget(QLabel("（0=不限制，步长10秒，最长3600秒）"))
         time_row.addStretch()
         input_layout.addRow("目标时长:", time_row)
 

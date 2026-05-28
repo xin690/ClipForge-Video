@@ -133,6 +133,8 @@ class Pipeline:
             self._report(progress_callback, PipelineStep.APPLY_RULES, 0.5, "应用规则...")
 
             self._report(progress_callback, PipelineStep.BUILD_TIMELINE, 0.0, "构建时间轴...")
+            for seg in script.segments:
+                seg.duration += 1
             timeline = timeline_builder.build(script)
             validator = TimelineValidator()
             errors = validator.validate(timeline)
@@ -189,7 +191,8 @@ class Pipeline:
             self._report(progress_callback, PipelineStep.GENERATE_SUBTITLE, 0.0, "生成字幕...")
             subtitle_path = os.path.join(os.path.dirname(output_path), "_temp_subtitle.ass")
             subtitle_segments = [(item.start, item.end, item.subtitle, item.subtitle_style,
-                                   item.subtitle_animation, item.subtitle_position)
+                                   item.subtitle_animation, item.subtitle_position,
+                                   item.subtitle_margin_v or 0)
                                   for item in timeline.timeline if item.subtitle]
             subtitle_gen.generate_from_text(subtitle_segments, subtitle_path)
             self.logger.info(f"字幕生成完成: {subtitle_path}")

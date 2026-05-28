@@ -55,6 +55,7 @@ class ScriptEditorTab(QWidget):
         self.current_file: str | None = None
         self._result_path: str | None = None
         self._worker: PipelineWorker | None = None
+        self._syncing = False
         self._setup_ui()
 
     def _setup_ui(self):
@@ -191,6 +192,36 @@ class ScriptEditorTab(QWidget):
         layout.addWidget(self.status_label)
 
         self._new_script()
+        self._connect_signals()
+
+    def _connect_signals(self):
+        self.editor.textChanged.connect(self._on_editor_changed)
+        self.input_title.textChanged.connect(self._on_form_field_changed)
+        self.combo_style.currentTextChanged.connect(self._on_form_field_changed)
+        self.combo_voice.currentTextChanged.connect(self._on_form_field_changed)
+        self.input_bgm.textChanged.connect(self._on_form_field_changed)
+        self.seg_table.cellChanged.connect(self._on_seg_table_changed)
+
+    def _on_editor_changed(self):
+        if self._syncing:
+            return
+        self._syncing = True
+        self._sync_json_to_form()
+        self._syncing = False
+
+    def _on_form_field_changed(self):
+        if self._syncing:
+            return
+        self._syncing = True
+        self._sync_form_to_json()
+        self._syncing = False
+
+    def _on_seg_table_changed(self, row: int, col: int):
+        if self._syncing:
+            return
+        self._syncing = True
+        self._sync_form_to_json()
+        self._syncing = False
 
     def load_file(self, path: str):
         try:
@@ -199,7 +230,6 @@ class ScriptEditorTab(QWidget):
             self.editor.setPlainText(content)
             self.current_file = path
             self.title_label.setText(f"脚本编辑器 - {Path(path).name}")
-            self._sync_json_to_form()
             self.status_label.setText(f"已加载: {path}")
         except Exception as e:
             QMessageBox.warning(self, "加载失败", str(e))
@@ -221,7 +251,6 @@ class ScriptEditorTab(QWidget):
         self.editor.setPlainText(json.dumps(default, ensure_ascii=False, indent=2))
         self.current_file = None
         self.title_label.setText("脚本编辑器 - 新建脚本")
-        self._sync_json_to_form()
 
     def _open_script(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -340,6 +369,7 @@ class ScriptEditorTab(QWidget):
         self.seg_table.setItem(row, 2, QTableWidgetItem(""))
         self.seg_table.setItem(row, 3, QTableWidgetItem("normal"))
         self.seg_table.setItem(row, 4, QTableWidgetItem("5"))
+        self._on_form_field_changed()
 
     def _remove_segment(self):
         current = self.seg_table.currentRow()
@@ -349,6 +379,7 @@ class ScriptEditorTab(QWidget):
                 item = self.seg_table.item(i, 0)
                 if item:
                     item.setText(str(i + 1))
+        self._on_form_field_changed()
 
     def _open_ai_plan(self):
         from ui.ai_plan_dialog import AIPlanDialog
