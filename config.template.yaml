@@ -31,6 +31,7 @@ subtitle:
   outline: 2
   shadow: 1
   position: bottom
+  margin_v: 10
   animation: none
   whisper_model: tiny
   device: cpu

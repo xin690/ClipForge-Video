@@ -2,6 +2,7 @@ import re
 from typing import Optional
 from core.database import Database
 from core.models import Asset
+from core.synonyms import SynonymEngine
 
 
 STYLE_WEIGHTS: dict[str, dict[str, float]] = {
@@ -25,9 +26,11 @@ class Matcher:
     def __init__(self, database: Database):
         self.db = database
         self._synonyms: dict[str, list[str]] = {}
+        self._synonym_engine = SynonymEngine()
 
     def load_synonyms(self, synonyms: dict[str, list[str]]):
         self._synonyms = {k.lower(): [s.lower() for s in v] for k, v in synonyms.items()}
+        self._synonym_engine.load_dict(synonyms)
 
     def match(
         self,
@@ -104,11 +107,16 @@ class Matcher:
             if kw_lower in asset_tags:
                 matched += 2.0
                 exact_count += 1
-            elif kw_lower in self._synonyms:
-                for syn in self._synonyms[kw_lower]:
-                    if syn.lower() in asset_tags:
-                        matched += 1.0
-                        break
+            else:
+                best_syn = 0.0
+                for tag in asset_tags:
+                    s = self._synonym_engine.score(kw_lower, tag)
+                    if s > best_syn:
+                        best_syn = s
+                if best_syn >= 0.8:
+                    matched += 1.0
+                elif best_syn >= 0.4:
+                    matched += 0.5
 
         if exact_count == 0 and matched == 0:
             return 0.0

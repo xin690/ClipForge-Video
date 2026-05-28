@@ -108,3 +108,73 @@ class TestSubtitleFormat:
         with open(out, encoding="utf-8") as f:
             content = f.read()
         assert "Microsoft YaHei" in content or "Fontname" in content
+
+    def test_per_segment_position_override(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 3.0, "顶部字幕", "normal", "none", "top"),
+                      (3.0, 6.0, "底部字幕", "normal", "none", "bottom")]
+        out = os.path.join(temp_dir, "pos.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "0:00:00.00" in content or "0:00:00,00" in content
+        assert "顶部字幕" in content
+        assert "底部字幕" in content
+
+    def test_position_align_tag_in_output(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "居顶", "normal", "none", "top")]
+        out = os.path.join(temp_dir, "align.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "an8" in content
+
+    def test_position_no_override_when_default(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "默认底部", "normal", "none", "bottom")]
+        out = os.path.join(temp_dir, "default_bottom.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "an2" not in content
+
+    def test_margin_v_in_custom_style(self, temp_dir):
+        config = {
+            "subtitle": {"engine": "text", "font_family": "Arial", "margin_v": 42},
+            "paths": {"cache": temp_dir},
+        }
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "自定义边距", "custom")]
+        out = os.path.join(temp_dir, "margin.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "Style: custom" in content
+        assert ",42," in content or "10,42" in content
+
+    def test_segment_anim_and_position_combined(self, temp_dir):
+        config = {"subtitle": {"engine": "text"}, "paths": {"cache": temp_dir}}
+        gen = SubtitleGenerator(config)
+        segments = [(0.0, 5.0, "动画+位置", "normal", "fadein", "top")]
+        out = os.path.join(temp_dir, "animpos.ass")
+        gen.generate_from_text(segments, out)
+        with open(out, encoding="utf-8") as f:
+            content = f.read()
+        assert "an8" in content
+        assert "fadein" in content or "alpha" in content
+
+    def test_position_align_all_values(self):
+        from core.subtitle import POSITION_ALIGN
+        assert POSITION_ALIGN["bottom"] == 2
+        assert POSITION_ALIGN["top"] == 8
+        assert POSITION_ALIGN["center"] == 5
+        assert POSITION_ALIGN["bottom_left"] == 1
+        assert POSITION_ALIGN["bottom_right"] == 3
+        assert POSITION_ALIGN["top_left"] == 7
+        assert POSITION_ALIGN["top_right"] == 9
+        assert POSITION_ALIGN["middle_left"] == 4
+        assert POSITION_ALIGN["middle_right"] == 6

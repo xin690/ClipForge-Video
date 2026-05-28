@@ -82,6 +82,7 @@ def _default_config() -> dict[str, Any]:
             "outline": 2,
             "shadow": 1,
             "position": "bottom",
+            "margin_v": 10,
             "animation": "none",
         },
         "ai": {

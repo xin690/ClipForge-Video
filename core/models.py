@@ -8,6 +8,8 @@ class Segment(BaseModel):
     keywords: list[str] = []
     emotion: str = "normal"
     duration: int = Field(gt=0, le=60, default=5)
+    subtitle_position: Optional[str] = None
+    subtitle_margin_v: Optional[int] = None
 
 
 class Script(BaseModel):
@@ -40,6 +42,8 @@ class TimelineItem(BaseModel):
     subtitle: str = ""
     subtitle_style: str = "normal"
     subtitle_animation: str = "none"
+    subtitle_position: Optional[str] = None
+    subtitle_margin_v: Optional[int] = None
     camera: str = "static"
     voice_file: Optional[str] = None
     bgm_file: Optional[str] = None

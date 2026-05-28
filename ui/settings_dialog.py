@@ -130,8 +130,16 @@ class SettingsDialog(QDialog):
         subtitle_layout.addRow("阴影:", self.spin_shadow)
 
         self.combo_position = QComboBox()
-        self.combo_position.addItems(["bottom", "top", "center"])
+        self.combo_position.addItems(["bottom", "top", "center",
+                                       "bottom_left", "bottom_right",
+                                       "top_left", "top_right",
+                                       "middle_left", "middle_right"])
         subtitle_layout.addRow("位置:", self.combo_position)
+
+        self.spin_margin_v = QSpinBox()
+        self.spin_margin_v.setRange(0, 200)
+        self.spin_margin_v.setSuffix(" px")
+        subtitle_layout.addRow("垂直边距:", self.spin_margin_v)
 
         self.combo_animation = QComboBox()
         self.combo_animation.addItems(["none", "pulse", "swing", "fadein", "scale", "typing"])
@@ -257,6 +265,7 @@ class SettingsDialog(QDialog):
         self.spin_outline.setValue(get("subtitle.outline", 2))
         self.spin_shadow.setValue(get("subtitle.shadow", 1))
         self.combo_position.setCurrentText(get("subtitle.position", "bottom"))
+        self.spin_margin_v.setValue(get("subtitle.margin_v", 10))
         self.combo_animation.setCurrentText(get("subtitle.animation", "none"))
         self.combo_preset.setCurrentText(get("video.preset", "veryfast"))
         self.spin_crf.setValue(get("video.crf", 23))
@@ -289,6 +298,7 @@ class SettingsDialog(QDialog):
         self._config["subtitle"]["outline"] = self.spin_outline.value()
         self._config["subtitle"]["shadow"] = self.spin_shadow.value()
         self._config["subtitle"]["position"] = self.combo_position.currentText()
+        self._config["subtitle"]["margin_v"] = self.spin_margin_v.value()
         self._config["subtitle"]["animation"] = self.combo_animation.currentText()
         self._config["video"]["preset"] = self.combo_preset.currentText()
         self._config["video"]["crf"] = self.spin_crf.value()

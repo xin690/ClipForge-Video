@@ -701,7 +701,8 @@ class Renderer:
     def _generate_subtitle_file(self, timeline: Timeline, output_path: str):
         from core.subtitle import SubtitleGenerator
         gen = SubtitleGenerator(self._config)
-        segments = [(item.start, item.end, item.subtitle, item.subtitle_style, item.subtitle_animation)
+        segments = [(item.start, item.end, item.subtitle, item.subtitle_style,
+                      item.subtitle_animation, item.subtitle_position)
                      for item in timeline.timeline if item.subtitle]
         gen.generate_from_text(segments, output_path)
 

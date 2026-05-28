@@ -15,6 +15,12 @@ POSITION_ALIGN: dict[str, int] = {
     "bottom": 2,
     "top": 8,
     "center": 5,
+    "bottom_left": 1,
+    "bottom_right": 3,
+    "top_left": 7,
+    "top_right": 9,
+    "middle_left": 4,
+    "middle_right": 6,
 }
 
 
@@ -29,13 +35,13 @@ def _html_color_to_ass(html: str) -> str:
 
 def _build_style_string(font: str, size: int, color: str, bold: bool = False,
                         outline: int = 2, shadow: int = 1,
-                        position: str = "bottom") -> str:
+                        position: str = "bottom", margin_v: int = 10) -> str:
     primary = _html_color_to_ass(color)
     align = POSITION_ALIGN.get(position, 2)
     b = "-1" if bold else "0"
     return (f"{font},{size},{primary},&H000000FF,&H00000000,"
             f"&H80000000,{b},0,0,0,100,100,0,0,1,{outline},{shadow},"
-            f"{align},10,10,10,1")
+            f"{align},10,{margin_v},10,1")
 
 
 class SubtitleGenerator:
@@ -105,7 +111,7 @@ class SubtitleGenerator:
             lines.append("")
         return "\n".join(lines)
 
-    def _format_ass(self, segments: list[tuple[float, float, str, Optional[str]]]) -> str:
+    def _format_ass(self, segments: list) -> str:
         style_lines = "\n".join(
             f"Style: {name},{defn}"
             for name, defn in self._get_all_ass_styles().items()
@@ -126,24 +132,44 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
         events = []
         for seg in segments:
-            if len(seg) >= 5:
+            start, end, text, seg_style, animation = (None, None, "", "Default", "none")
+            position = None
+            if len(seg) >= 6:
+                start, end, text, seg_style, animation, position = seg[:6]
+            elif len(seg) == 5:
                 start, end, text, seg_style, animation = seg[:5]
             elif len(seg) == 4:
-                start, end, text, seg_style = seg
-                animation = "none"
+                start, end, text, seg_style = seg[:4]
+            elif len(seg) == 3:
+                start, end, text = seg[:3]
             else:
-                start, end, text = seg
-                seg_style = "Default"
-                animation = "none"
+                continue
             clean_text = text.strip().replace("\n", "\\N")
             anim_tag = ANIMATION_TAGS.get(animation, "")
             if anim_tag:
                 clean_text = anim_tag + clean_text
+            if position and position in POSITION_ALIGN:
+                style_align = self._get_style_alignment(seg_style)
+                target_align = POSITION_ALIGN[position]
+                if target_align != style_align:
+                    clean_text = f"{{\\an{target_align}}}{clean_text}"
             events.append(
                 f"Dialogue: 0,{self._time_str_ass(start)},{self._time_str_ass(end)},{seg_style},,0,0,0,,{clean_text}"
             )
 
         return header + "\n".join(events)
+
+    def _get_style_alignment(self, style_name: str) -> int:
+        style_str = self._get_all_ass_styles().get(style_name, "")
+        if not style_str:
+            return 2
+        parts = style_str.split(",")
+        if len(parts) >= 18:
+            try:
+                return int(parts[17])
+            except ValueError:
+                pass
+        return 2
 
     ALL_ASS_STYLES: dict[str, str] = {
     "Default":       "Microsoft YaHei,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1",
@@ -176,6 +202,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 outline=sub_cfg.get("outline", 2),
                 shadow=sub_cfg.get("shadow", 1),
                 position=sub_cfg.get("position", "bottom"),
+                margin_v=sub_cfg.get("margin_v", 10),
             )
         return styles
 
