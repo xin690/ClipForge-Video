@@ -57,14 +57,12 @@ class Matcher:
         from core.semantic import get_category_tags, category_match_score
         category_tags = get_category_tags(style, emotion)
 
-        candidates = self.db.search_assets(type_filter=asset_type, limit=100)
+        candidates = self.db.search_assets(type_filter=asset_type, limit=500)
         scored: list[tuple[Asset, float]] = []
         w = STYLE_WEIGHTS.get(style, STYLE_WEIGHTS["knowledge"])
 
         for asset in candidates:
             kw_score = self._keyword_score(asset, all_keywords)
-            if kw_score <= 0:
-                continue
             tone_score = self._emotion_tone_score(asset, emotion)
             div_score = self._diversity_score(asset, prev_asset, all_keywords)
             cat_score = category_match_score(asset.tags, category_tags)
@@ -112,18 +110,16 @@ class Matcher:
         return list(result)
 
     def _keyword_score(self, asset: Asset, keywords: list[str]) -> float:
-        if not asset.tags:
+        if not asset.tags or not keywords:
             return 0.0
 
         asset_tags = set(t.lower() for t in asset.tags)
-        matched = 0
-        exact_count = 0
+        matched = 0.0
 
         for kw in keywords:
             kw_lower = kw.lower()
             if kw_lower in asset_tags:
-                matched += 2.0
-                exact_count += 1
+                matched += 1.0
             else:
                 best_syn = 0.0
                 for tag in asset_tags:
@@ -131,14 +127,11 @@ class Matcher:
                     if s > best_syn:
                         best_syn = s
                 if best_syn >= 0.8:
-                    matched += 1.0
+                    matched += 0.6
                 elif best_syn >= 0.4:
-                    matched += 0.5
+                    matched += 0.3
 
-        if exact_count == 0 and matched == 0:
-            return 0.0
-
-        return matched / len(keywords) if keywords else 0.0
+        return matched / len(keywords)
 
     def _emotion_tone_score(self, asset: Asset, emotion: str) -> float:
         if not asset.tags or emotion not in TONE_MAP:

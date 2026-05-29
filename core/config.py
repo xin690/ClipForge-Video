@@ -90,7 +90,7 @@ def _default_config() -> dict[str, Any]:
             "model": "gpt-4o-mini",
             "max_versions": 2, "critique_enabled": True,
         },
-        "downloader": {"provider": "pexels", "api_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
+        "downloader": {"pexels_key": "", "pixabay_key": "", "max_per_query": 3, "min_width": 1920, "timeout": 120},
         "bgm": {"volume": 0.3},
         "visual": {
             "beat_sync": False,
@@ -116,7 +116,7 @@ def _default_config() -> dict[str, Any]:
             },
         },
         "scanner": {
-            "content_analysis": False,
+            "content_analysis": True,
         },
         "logging": {"level": "INFO"},
         "qa": {

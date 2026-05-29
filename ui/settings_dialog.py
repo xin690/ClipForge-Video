@@ -189,18 +189,20 @@ class SettingsDialog(QDialog):
         dl_tab = QWidget()
         dl_layout = QFormLayout(dl_tab)
 
-        self.combo_dl_provider = QComboBox()
-        self.combo_dl_provider.addItems(["pexels", "pixabay"])
-        dl_layout.addRow("素材提供商:", self.combo_dl_provider)
+        self.input_pexels_key = QLineEdit()
+        self.input_pexels_key.setPlaceholderText("输入 Pexels API Key (免费 200次/h)")
+        self.input_pexels_key.setEchoMode(QLineEdit.EchoMode.Password)
+        dl_layout.addRow("Pexels Key:", self.input_pexels_key)
 
-        self.input_dl_api_key = QLineEdit()
-        self.input_dl_api_key.setPlaceholderText("输入 Pexels/Pixabay API Key (免费注册)")
-        self.input_dl_api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        dl_layout.addRow("API Key:", self.input_dl_api_key)
+        self.input_pixabay_key = QLineEdit()
+        self.input_pixabay_key.setPlaceholderText("输入 Pixabay API Key (免费 5000次/月)")
+        self.input_pixabay_key.setEchoMode(QLineEdit.EchoMode.Password)
+        dl_layout.addRow("Pixabay Key:", self.input_pixabay_key)
 
         dl_note = QLabel(
-            "注册地址: https://www.pexels.com/api/ (免费，200次/小时)\n"
-            "或 https://pixabay.com/api/docs/ (免费，5000次/月)"
+            "两个 Key 至少填一个即可同时搜索两平台素材。\n"
+            "Pexels: https://www.pexels.com/api/ (200次/小时)\n"
+            "Pixabay: https://pixabay.com/api/docs/ (5000次/月)"
         )
         dl_note.setWordWrap(True)
         dl_note.setStyleSheet("color: #a6adc8; font-size: 11px;")
@@ -274,8 +276,8 @@ class SettingsDialog(QDialog):
         self.combo_ai_provider.setCurrentText(get("ai.provider", "openai"))
         self.input_api_key.setText(get("ai.api_key", ""))
         self.combo_ai_model.setCurrentText(get("ai.model", "gpt-4o-mini"))
-        self.combo_dl_provider.setCurrentText(get("downloader.provider", "pexels"))
-        self.input_dl_api_key.setText(get("downloader.api_key", ""))
+        self.input_pexels_key.setText(get("downloader.pexels_key", ""))
+        self.input_pixabay_key.setText(get("downloader.pixabay_key", ""))
 
     def _save(self):
         res_text = self.combo_resolution.currentText()
@@ -307,8 +309,8 @@ class SettingsDialog(QDialog):
         self._config["ai"]["provider"] = self.combo_ai_provider.currentText()
         self._config["ai"]["api_key"] = self.input_api_key.text()
         self._config["ai"]["model"] = self.combo_ai_model.currentText()
-        self._config["downloader"]["provider"] = self.combo_dl_provider.currentText()
-        self._config["downloader"]["api_key"] = self.input_dl_api_key.text()
+        self._config["downloader"]["pexels_key"] = self.input_pexels_key.text()
+        self._config["downloader"]["pixabay_key"] = self.input_pixabay_key.text()
 
         save_config(self._config)
         QMessageBox.information(self, "提示", "设置已保存")

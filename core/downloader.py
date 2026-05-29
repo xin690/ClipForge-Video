@@ -1,6 +1,5 @@
 import os
 import re
-import hashlib
 import logging
 from pathlib import Path
 from typing import Optional, Callable
@@ -17,6 +16,21 @@ PEXELS_PHOTO_URL = "https://api.pexels.com/v1/search"
 PIXABAY_VIDEO_URL = "https://pixabay.com/api/videos/"
 PIXABAY_PHOTO_URL = "https://pixabay.com/api/"
 
+STYLE_KEYWORDS = {
+    "knowledge": ["documentary", "educational", "explainer", "science"],
+    "news": ["breaking", "report", "interview", "footage"],
+    "entertainment": ["fun", "vlog", "lifestyle", "trending"],
+    "commerce": ["product", "commercial", "promo", "advertisement"],
+}
+
+EMOTION_KEYWORDS = {
+    "normal": ["neutral", "daily", "casual"],
+    "strong": ["dynamic", "bold", "energetic"],
+    "happy": ["joyful", "fun", "bright"],
+    "sad": ["calm", "gentle", "moody"],
+    "calm": ["peaceful", "soft", "serene"],
+}
+
 
 def _sanitize_filename(text: str, max_len: int = 80) -> str:
     name = re.sub(r'[\\/:*?"<>|]', '_', text)
@@ -26,47 +40,61 @@ def _sanitize_filename(text: str, max_len: int = 80) -> str:
     return name or "untitled"
 
 
+def expand_search_queries(keywords: list[str], style: str = "",
+                           emotion: str = "") -> list[str]:
+    queries = set()
+    base = " ".join(keywords).strip()
+    if base:
+        queries.add(base)
+    style_kw = STYLE_KEYWORDS.get(style, [])
+    if style_kw and base:
+        queries.add(f"{base} {style_kw[0]}")
+    emotion_kw = EMOTION_KEYWORDS.get(emotion, [])
+    if emotion_kw and base:
+        queries.add(f"{base} {emotion_kw[0]}")
+    return list(queries)[:3]
+
+
 class Downloader:
     def __init__(self, config: dict):
         dl_cfg = config.get("downloader", {})
-        self.provider = dl_cfg.get("provider", "pexels")
-        self.api_key = dl_cfg.get("api_key", "")
+        self.pexels_key = dl_cfg.get("pexels_key", "") or (
+            dl_cfg.get("api_key", "") if dl_cfg.get("provider", "") == "pexels" else ""
+        )
+        self.pixabay_key = dl_cfg.get("pixabay_key", "") or (
+            dl_cfg.get("api_key", "") if dl_cfg.get("provider", "") == "pixabay" else ""
+        )
         self.max_per_query = dl_cfg.get("max_per_query", 3)
         self.min_width = dl_cfg.get("min_width", 1920)
         self.timeout = dl_cfg.get("timeout", 120)
 
     def _check_configured(self) -> bool:
-        if not self.api_key:
-            _log.warning("下载器 API Key 未配置")
+        if not self.pexels_key and not self.pixabay_key:
+            _log.warning("下载器 API Key 未配置（至少需要 Pexels 或 Pixabay 一个 Key）")
             return False
         return True
 
     def search(self, query: str, media_type: str = "video", per_page: int | None = None) -> list[dict]:
-        """搜索素材。
-
-        Args:
-            query: 搜索关键词
-            media_type: video 或 photo
-            per_page: 每页结果数
-
-        Returns:
-            list of {"url": str, "preview_url": str, "width": int, "height": int, "duration": float|None, "author": str, "source_url": str}
-        """
         if not self._check_configured():
             return []
-
         per_page = per_page or self.max_per_query
-
-        if self.provider == "pexels":
-            return self._search_pexels(query, media_type, per_page)
-        elif self.provider == "pixabay":
-            return self._search_pixabay(query, media_type, per_page)
-        else:
-            _log.warning("不支持的素材提供商: %s", self.provider)
-            return []
+        all_results = []
+        if self.pexels_key:
+            all_results.extend(self._search_pexels(query, media_type, per_page))
+        if self.pixabay_key:
+            all_results.extend(self._search_pixabay(query, media_type, per_page))
+        seen = set()
+        unique = []
+        for r in all_results:
+            u = r.get("url", "")
+            if u and u not in seen:
+                seen.add(u)
+                unique.append(r)
+        unique.sort(key=lambda r: (-r.get("width", 0) * r.get("height", 0)))
+        return [r for r in unique if r.get("width", 0) >= self.min_width]
 
     def _search_pexels(self, query: str, media_type: str, per_page: int) -> list[dict]:
-        headers = {"Authorization": self.api_key}
+        headers = {"Authorization": self.pexels_key}
         params = {"query": query, "per_page": per_page}
 
         if media_type == "photo":
@@ -100,6 +128,7 @@ class Downloader:
                             "author": item.get("user", {}).get("name", ""),
                             "source_url": item.get("url", ""),
                             "source": "pexels",
+                            "api_tags": [item.get("user", {}).get("name", "pexels")],
                         })
                 else:
                     src = item.get("src", {})
@@ -114,6 +143,7 @@ class Downloader:
                             "author": item.get("photographer", ""),
                             "source_url": item.get("url", ""),
                             "source": "pexels",
+                            "api_tags": [item.get("photographer", "pexels")],
                         })
             return results
         except Exception as e:
@@ -126,7 +156,7 @@ class Downloader:
         else:
             url = PIXABAY_PHOTO_URL
 
-        params = {"key": self.api_key, "q": query, "per_page": per_page}
+        params = {"key": self.pixabay_key, "q": query, "per_page": per_page}
 
         try:
             resp = httpx.get(url, params=params, timeout=30)
@@ -138,6 +168,14 @@ class Downloader:
             results = []
             hits = data.get("hits", [])
             for hit in hits:
+                api_tags = []
+                tags_str = hit.get("tags", "")
+                if tags_str:
+                    api_tags = [t.strip() for t in tags_str.split(",") if t.strip()]
+                user = hit.get("user", "")
+                if user and user not in api_tags:
+                    api_tags.append(user)
+
                 if media_type == "video":
                     videos_data = hit.get("videos", {})
                     best = self._pick_best_video_quality_pixabay(videos_data)
@@ -148,9 +186,10 @@ class Downloader:
                             "width": hit.get("videoWidth", 0) or 1920,
                             "height": hit.get("videoHeight", 0) or 1080,
                             "duration": hit.get("duration"),
-                            "author": hit.get("user", ""),
+                            "author": user,
                             "source_url": hit.get("pageURL", ""),
                             "source": "pixabay",
+                            "api_tags": api_tags,
                         })
                 else:
                     best_url = hit.get("largeImageURL", hit.get("webformatURL", ""))
@@ -161,9 +200,10 @@ class Downloader:
                             "width": hit.get("imageWidth", 0),
                             "height": hit.get("imageHeight", 0),
                             "duration": None,
-                            "author": hit.get("user", ""),
+                            "author": user,
                             "source_url": hit.get("pageURL", ""),
                             "source": "pixabay",
+                            "api_tags": api_tags,
                         })
             return results
         except Exception as e:
@@ -189,11 +229,6 @@ class Downloader:
         return None
 
     def download(self, url: str, dest_path: str, progress_callback: Optional[Callable[[float], None]] = None) -> bool:
-        """下载文件到目标路径。
-
-        Returns:
-            True 成功，False 失败。
-        """
         try:
             parent = os.path.dirname(dest_path)
             if parent:
@@ -244,36 +279,38 @@ class Downloader:
         media_type: str = "video",
         progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> list[str]:
-        """搜索并下载素材到素材目录。
-
-        Args:
-            queries: 搜索查询列表 [{"segment_id": 1, "query": "mountain", "keywords": [...]}, ...]
-            assets_dir: 素材根目录
-            media_type: video 或 photo (对应 image)
-            progress_callback: (message, current/total) 回调
-
-        Returns:
-            成功下载的文件路径列表
-        """
         as_type = "video" if media_type == "video" else "image"
         subdir_map = {"video": "videos", "image": "images"}
         target_subdir = os.path.join(assets_dir, subdir_map.get(as_type, "videos"))
 
-        downloaded: list[str] = []
+        downloaded: list[tuple[str, list[str]]] = []
         total = len(queries)
 
         for idx, q in enumerate(queries):
             if progress_callback:
                 progress_callback(f"搜索: {q.get('query', '')}", idx / total)
 
-            results = self.search(q.get("query", ""), media_type, per_page=self.max_per_query)
-            if not results:
-                _log.warning("未搜索到结果: %s", q.get("query", ""))
+            search_queries = expand_search_queries(
+                q.get("keywords", []),
+                style=q.get("style", ""),
+                emotion=q.get("emotion", ""),
+            )
+            if not search_queries:
+                search_queries = [q.get("query", "")]
+            all_results = []
+            for sq in search_queries:
+                results = self.search(sq, media_type, per_page=self.max_per_query)
+                all_results.extend(results)
+                if len(all_results) >= self.max_per_query:
+                    break
+
+            if not all_results:
+                _log.warning("未搜索到结果 (多词): %s", search_queries)
                 if progress_callback:
-                    progress_callback(f"未找到: {q.get('query', '')}", (idx + 1) / total)
+                    progress_callback(f"未找到: {search_queries[0] if search_queries else q.get('query', '')}", (idx + 1) / total)
                 continue
 
-            best = results[0]
+            best = all_results[0]
             seg_id = q.get("segment_id", idx + 1)
             base_name = _sanitize_filename(f"seg{seg_id:02d}_{q.get('query', 'media')[:40]}".strip("_"))
 
@@ -293,7 +330,7 @@ class Downloader:
                     progress_callback(msg, (idx + 0.3) / total)
 
                 if self.download(url, dest_path):
-                    downloaded.append(dest_path)
+                    downloaded.append((dest_path, best.get("api_tags", [])))
                     break
                 else:
                     url = best.get("url", "")
@@ -307,17 +344,33 @@ class Downloader:
         _log.info("素材下载完成: %d/%d", len(downloaded), total)
 
         if downloaded:
-            self._auto_scan(downloaded, assets_dir)
+            self._auto_scan([d[0] for d in downloaded], assets_dir)
+            self._update_downloaded_tags(downloaded, assets_dir)
 
-        return downloaded
+        return [d[0] for d in downloaded]
+
+    def _update_downloaded_tags(self, downloaded_files: list[tuple[str, list[str]]], assets_dir: str):
+        db_path = self._find_db_path(assets_dir)
+        if not db_path:
+            return
+        try:
+            db = Database(db_path)
+            for path, api_tags in downloaded_files:
+                if not api_tags:
+                    continue
+                asset = db.get_asset_by_file(os.path.basename(path))
+                if asset:
+                    merged = list(dict.fromkeys(asset.tags + api_tags))
+                    db.update_asset_tags(asset.id, merged)
+                    _log.info("更新标签: %s (%d tags)", os.path.basename(path), len(merged))
+            db.close()
+        except Exception as e:
+            _log.warning("更新下载标签失败: %s", e)
 
     def _auto_scan(self, downloaded_files: list[str], assets_dir: str):
-        db_path = os.path.join(os.path.dirname(assets_dir), "database", "clipforge.db")
-        if not os.path.exists(os.path.dirname(db_path)):
-            db_path = os.path.join(assets_dir, "..", "database", "clipforge.db")
-        if not os.path.exists(os.path.dirname(db_path)):
+        db_path = self._find_db_path(assets_dir)
+        if not db_path:
             db_path = "./database/clipforge.db"
-
         try:
             db = Database(db_path)
             db.init_tables()
@@ -330,3 +383,15 @@ class Downloader:
             db.close()
         except Exception as e:
             _log.warning("自动扫描失败: %s", e)
+
+    def _find_db_path(self, assets_dir: str) -> Optional[str]:
+        candidates = [
+            os.path.join(os.path.dirname(assets_dir), "database", "clipforge.db"),
+            os.path.join(assets_dir, "..", "database", "clipforge.db"),
+            "./database/clipforge.db",
+        ]
+        for p in candidates:
+            normalized = os.path.normpath(p)
+            if os.path.exists(os.path.dirname(normalized)):
+                return normalized
+        return candidates[-1]

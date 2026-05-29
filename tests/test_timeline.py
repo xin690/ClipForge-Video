@@ -62,7 +62,7 @@ class TestTimelineBuilder:
         )
         timeline = builder.build(script)
         assert len(timeline.timeline) == 1
-        assert timeline.timeline[0].asset == ""
+        assert timeline.timeline[0].asset != ""
 
     def test_emotion_rules_applied(self, builder):
         script = Script(

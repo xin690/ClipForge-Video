@@ -243,11 +243,11 @@ def main():
     fname3 = _sanitize_filename("///")
     check("Downloader sanitize empty", fname3 == "untitled")
 
-    dl = Downloader({"downloader": {"provider": "pexels", "api_key": "", "max_per_query": 5}})
-    check("Downloader init", dl.provider == "pexels" and dl.max_per_query == 5)
+    dl = Downloader({"downloader": {"pexels_key": "test", "api_key": "", "max_per_query": 5}})
+    check("Downloader init", dl.pexels_key == "test" and dl.max_per_query == 5)
 
     dl_empty = Downloader({})
-    check("Downloader defaults", dl_empty.provider == "pexels")
+    check("Downloader defaults", dl_empty.pexels_key == "")
 
     check("Downloader no api search", dl.search("test") == [])
 

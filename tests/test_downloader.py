@@ -35,34 +35,53 @@ class TestSanitizeFilename:
 class TestDownloaderInit:
     def test_defaults(self):
         dl = Downloader({})
-        assert dl.provider == "pexels"
-        assert dl.api_key == ""
+        assert dl.pexels_key == ""
+        assert dl.pixabay_key == ""
         assert dl.max_per_query == 3
 
     def test_custom_config(self):
         dl = Downloader({
             "downloader": {
-                "provider": "pixabay",
-                "api_key": "test-key",
+                "pexels_key": "pex-key",
+                "pixabay_key": "pix-key",
                 "max_per_query": 5,
                 "min_width": 1280,
                 "timeout": 60,
             }
         })
-        assert dl.provider == "pixabay"
-        assert dl.api_key == "test-key"
+        assert dl.pexels_key == "pex-key"
+        assert dl.pixabay_key == "pix-key"
         assert dl.max_per_query == 5
         assert dl.min_width == 1280
+
+    def test_legacy_config_fallback(self):
+        dl = Downloader({
+            "downloader": {
+                "provider": "pexels",
+                "api_key": "legacy-key",
+            }
+        })
+        assert dl.pexels_key == "legacy-key"
+        assert dl.pixabay_key == ""
+
+        dl2 = Downloader({
+            "downloader": {
+                "provider": "pixabay",
+                "api_key": "old-key",
+            }
+        })
+        assert dl2.pexels_key == ""
+        assert dl2.pixabay_key == "old-key"
 
 
 class TestDownloaderNoApi:
     def test_search_no_api_key(self):
-        dl = Downloader({"downloader": {"api_key": ""}})
+        dl = Downloader({"downloader": {}})
         results = dl.search("test")
         assert results == []
 
     def test_search_and_download_no_api_key(self):
-        dl = Downloader({"downloader": {"api_key": ""}})
+        dl = Downloader({"downloader": {}})
         results = dl.search_and_download([{"segment_id": 1, "query": "test"}], "./test_assets")
         assert results == []
 
@@ -71,7 +90,7 @@ class TestDownloaderNoApi:
         assert dl._check_configured() is False
 
     def test_check_configured_true(self):
-        dl = Downloader({"downloader": {"api_key": "test"}})
+        dl = Downloader({"downloader": {"pexels_key": "test"}})
         assert dl._check_configured() is True
 
 

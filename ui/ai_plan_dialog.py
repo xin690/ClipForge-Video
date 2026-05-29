@@ -688,10 +688,10 @@ class AIPlanDialog(QDialog):
 
         config = get_config()
         dl_cfg = config.get("downloader", {})
-        if not dl_cfg.get("api_key"):
+        if not dl_cfg.get("pexels_key") and not dl_cfg.get("pixabay_key") and not dl_cfg.get("api_key"):
             reply = QMessageBox.question(
                 self, "素材 API 未配置",
-                "Pexels/Pixabay API Key 未配置。\n\n请先到 https://www.pexels.com/api/ 免费注册获取 API Key，\n然后在设置中填入。\n\n是否打开设置对话框？",
+                "Pexels/Pixabay API Key 未配置。\n\n请到设置中填入至少一个平台的 API Key（免费注册）。\nPexels: https://www.pexels.com/api/ (200次/小时)\nPixabay: https://pixabay.com/api/docs/ (5000次/月)\n\n是否打开设置对话框？",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply == QMessageBox.StandardButton.Yes:
