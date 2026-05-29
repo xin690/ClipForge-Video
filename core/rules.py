@@ -145,6 +145,4 @@ class DurationRule(Rule):
         emotion = ctx.get("emotion", "normal")
         if emotion == "strong" and duration < 4:
             return {"adjusted_duration": 4}
-        if emotion == "calm" and duration > 8:
-            return {"adjusted_duration": 8}
         return {}

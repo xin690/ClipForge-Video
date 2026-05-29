@@ -86,3 +86,48 @@ class TestAIPlannerInit:
         planner2 = AIPlanner({"ai": {"enabled": True, "provider": "deepseek"}})
         url2 = planner2._api_url()
         assert "deepseek.com" in url2
+
+
+class TestSelectVoice:
+    def test_knowledge_calm_returns_yunxi(self):
+        segs = [
+            {"emotion": "calm", "text": "test"},
+            {"emotion": "calm", "text": "test"},
+            {"emotion": "sad", "text": "test"},
+        ]
+        assert AIPlanner._select_voice("knowledge", segs) == "zh-CN-YunxiNeural"
+
+    def test_knowledge_normal_returns_xiaoxiao(self):
+        segs = [
+            {"emotion": "normal", "text": "test"},
+            {"emotion": "happy", "text": "test"},
+            {"emotion": "normal", "text": "test"},
+        ]
+        assert AIPlanner._select_voice("knowledge", segs) == "zh-CN-XiaoxiaoNeural"
+
+    def test_news_returns_yunjian(self):
+        segs = [{"emotion": "normal", "text": "test"}]
+        assert AIPlanner._select_voice("news", segs) == "zh-CN-YunjianNeural"
+
+    def test_entertainment_returns_xiaoyi(self):
+        segs = [{"emotion": "happy", "text": "test"}]
+        assert AIPlanner._select_voice("entertainment", segs) == "zh-CN-XiaoyiNeural"
+
+    def test_commerce_strong_returns_yunyang(self):
+        segs = [
+            {"emotion": "strong", "text": "test"},
+            {"emotion": "happy", "text": "test"},
+        ]
+        assert AIPlanner._select_voice("commerce", segs) == "zh-CN-YunyangNeural"
+
+    def test_commerce_normal_returns_xiaoxiao(self):
+        segs = [{"emotion": "normal", "text": "test"}]
+        assert AIPlanner._select_voice("commerce", segs) == "zh-CN-XiaoxiaoNeural"
+
+    def test_empty_segments_defaults_to_normal(self):
+        segs: list[dict] = []
+        assert AIPlanner._select_voice("knowledge", segs) == "zh-CN-XiaoxiaoNeural"
+
+    def test_unknown_style_defaults_to_xiaoxiao(self):
+        segs = [{"emotion": "normal", "text": "test"}]
+        assert AIPlanner._select_voice("unknown_style", segs) == "zh-CN-XiaoxiaoNeural"

@@ -107,12 +107,19 @@ class AIPlanner:
 5. 【时长】总时长控制在目标时长附近（误差允许 ±10 秒），各段 4-10 秒且有**长短节奏变化**
 6. 【搜索词】为每段生成英文搜索关键词（用于Pexels/Pixabay搜索视频素材）
 7. 【情绪曲线】全片应有情绪起伏：开头吸引注意→中间充实内容→结尾感悟/号召
-8. 【配音】根据影片风格和情绪曲线，推荐最适合的 edge-tts 配音角色:
-   - zh-CN-XiaoxiaoNeural: 女声温暖亲切，适合知识科普/通用
-   - zh-CN-YunxiNeural: 男声沉稳可靠，适合知识科普/新闻
-   - zh-CN-XiaoyiNeural: 女声活泼热情，适合娱乐/电商
-   - zh-CN-YunyangNeural: 男声激昂有力，适合电商/宣传
-   - zh-CN-YunjianNeural: 男声专业清晰，适合新闻资讯
+8. 【配音】根据视频风格、各段落情绪分布和文案内容特点，选择最匹配的配音角色:
+   选择规则：
+   - 知识科普类：
+     - 文案偏深沉/历史/哲理，情绪以 calm/sad 为主 → zh-CN-YunxiNeural（男沉稳可靠）
+     - 文案偏生活/健康/温情，情绪以 normal/happy 为主 → zh-CN-XiaoxiaoNeural（女温暖亲切）
+   - 新闻资讯类：
+     - 科技/财经/数据分析内容 → zh-CN-YunjianNeural（男专业清晰）
+     - 社会新闻/时事报道 → zh-CN-YunxiNeural（男沉稳可靠）
+   - 娱乐/Vlog类 → zh-CN-XiaoyiNeural（女活泼热情）
+   - 电商带货类：
+     - 促销/折扣/限时/号召/体育 → zh-CN-YunyangNeural（男激昂有力）
+     - 产品展示/温情/生活向 → zh-CN-XiaoxiaoNeural（女温暖亲切）
+   默认为 zh-CN-XiaoxiaoNeural
 9. 【背景音乐】根据影片风格推荐 BGM 类型（如"轻快""舒缓""激昂""温馨""科技感""自然"等），用中文描述
 
 请**只输出**以下JSON格式，不要包含```json标记或其他任何文字:
@@ -344,6 +351,28 @@ class AIPlanner:
     def _validate_before_api(self, data: dict) -> list[str]:
         return self._validate_input("critique", data)
 
+    @staticmethod
+    def _select_voice(style: str, segments: list[dict]) -> str:
+        emotion_counts: dict[str, int] = {}
+        for seg in segments:
+            e = seg.get("emotion", "normal")
+            emotion_counts[e] = emotion_counts.get(e, 0) + 1
+        dominant = max(emotion_counts, key=emotion_counts.get) if emotion_counts else "normal"
+
+        if style == "knowledge":
+            if dominant in ("calm", "sad"):
+                return "zh-CN-YunxiNeural"
+            return "zh-CN-XiaoxiaoNeural"
+        elif style == "news":
+            return "zh-CN-YunjianNeural"
+        elif style == "entertainment":
+            return "zh-CN-XiaoyiNeural"
+        elif style == "commerce":
+            if dominant in ("strong", "happy"):
+                return "zh-CN-YunyangNeural"
+            return "zh-CN-XiaoxiaoNeural"
+        return "zh-CN-XiaoxiaoNeural"
+
     # ── 核心入口 ────────────────────────────────────────
 
     def plan_from_theme(self, theme: str, style: str = "knowledge", target_duration: int = 0) -> Optional[dict]:
@@ -384,11 +413,7 @@ class AIPlanner:
             if not clean_segments:
                 continue
 
-            _VOICES = {"zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural", "zh-CN-XiaoyiNeural",
-                       "zh-CN-YunyangNeural", "zh-CN-YunjianNeural"}
-            voice = str(data.get("voice", "zh-CN-XiaoxiaoNeural")).strip()
-            if voice not in _VOICES:
-                voice = "zh-CN-XiaoxiaoNeural"
+            voice = self._select_voice(style, clean_segments)
             bgm = str(data.get("bgm", "")).strip()
             script_data = {
                 "title": str(data.get("title", theme[:20])).strip() or theme[:20],
